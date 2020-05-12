@@ -96,7 +96,7 @@ Raft specifikacija garantuoja kad Raft algoritmas tenkina sekančias savybes~\ci
 \item Sistemos kaip būsenos mašinos saugumas: jei mazgas įvykdė žurnalo įrašą, joks kitas mazgas niekada neįvykdys skirtingo įrašo su tuo pačiu indeksu.
 \end{enumerate}
 
-Toliau detaliau apžvelgsime kaip Raft užtikrina tai, kad galiausiai būtų išrinktas klasterio lyderis ir kaip lyderis perduoda įrašus kitiems mazgams.
+Toliau detaliau apžvelgsime kaip Raft užtikrina tai, kad galiausiai būtų išrinktas mazgų lyderis ir kaip lyderis perduoda įrašus kitiems mazgams.
 
 \subsection{Raft lyderio išrinkimas}
 
@@ -135,6 +135,9 @@ Ra \texttt{AppendEntries} užklausa naudoja tris nestandartinius laukus: \texttt
 Ra nenaudoja Raft aprašyto gedimo aptikimo algoritmo. Ra naudoja gimtąjį Erlang mazgų stebėjimo infrastruktūrą stebėti ar mazgai nenustojo veikti ir Aten\footnote{https://github.com/rabbitmq/aten} biblioteką mazgų susisiekimo klaidoms aptikti~\cite{rabbitmqra}.
 
 Erlang monitoriai leidžia greitai aptikti mazgų neveikimą kodo klaidos metimo atveju (angl. ,,crash''). Stebėtojui yra išsiunčiama \texttt{'DOWN'} žinutė~\cite{ericsson_erlang_processes_2016}. Erlang monitoriai užtikrina greitą lyderio mazgo neveikimo aptikimą jo sekėjais ir taip iš dalies pakeičia Raft širdies plakimo mechanizmą~\cite{rabbitmqra}. Aten biblioteka leidžia aptikti tinklo paskirstymo problemas, kaip mazgų nepasiekiamumą per tinklą. Kai Aten įtaria kad vienas iš mazgų yra nepasiekiamas, yra išsiunčiama \texttt{nodedown} žinutė mazgo stebėtojui. Atitinkamai, jei mazgas ,,atsigauna'' ir atrodo vėl veikiantis, yra išsiunčiama \texttt{nodeup} žinutė~\cite{rabbitmq_aten_2020}. Kartu Erlang monitoriai ir Aten biblioteka, anot Ra autorių, užtikrina mazgų gyvumą ir pakeičia Raft aprašytą širdies plakimo mechanizmą~\cite{rabbitmqra}.
+
+Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem}\footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
+Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką.
 
 \section{Raft Ra praplėtimų korektiškumas}
 \TD{parodyti kad (dalis) praplėtimų yra korektiški, galimai TLA+ pagalba}
