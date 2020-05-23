@@ -46,43 +46,22 @@
 \tableofcontents
 
 \sectionnonum{Įvadas}
-%Įvade apibūdinamas darbo tikslas, temos aktualumas ir siekiami rezultatai.
-%Darbo įvadas neturi būti dėstymo santrauka. Įvado apimtis 1–2 puslapiai.
 
-Paskirstyta sistema yra skaičiavimų elementų (toliau - mazgų) rinkinys, kuris yra naudojamas kaip vientisa sistema~\cite{steen_distributed_2017}. Paskirstytose sistemose konsensuso algoritmai yra reikalingi būsenų sinchronizavimui tarp sistemos mazgų. Konsensuso algoritmas turi užtikrinti, kad sistema būtų prieinama vieno ar daugiau mazgų gedimo ar neprieinamumo atvejais~\cite{ongaro_consensus}. 
+Mūsų amžiuje, esminėms visuomenės sistemoms persikeliant į virtualią erdvę, informacinių sistemų stabilumas tampa vis svarbesnis. IT sistemos turi atlaikyti aparatinės įrangos gedimus, nes vieno bito apvertimas sistemos kūrėjams gali kainuoti labai daug. Paskirstytos sistemos yra patraukli alternatyva lygiagrečioms sistemoms, leidžianti efektyviai panaudoti šiuolaikiškus IT resursus ir užtikrinti sistemos gyvybingumą ir korektiškumą. Esminė paskirstytų sistemų dalis yra konsensuso algoritmas. Paskirstytos sistemos veikimo metu gali būti situacijų, kai kelių mazgų būsenos yra skirtingos. Pavyzdžiui, kai vienas iš mazgų trumpam laikui tampa neprieinamas ir negali atnaujinti savo būsenos, o vėliau vėl tampa prieinamas. Mazgų būsenos gali išsiskirti, ir iš skirtingų mazgų klientui gali būti grąžinami skirtingi rezultatai. Tai pažeistų sistemos vientisumą. Todėl būtina sinchronizuoti būsenas tarp mazgų ir tuo pačiu metu leisti sistemai veikti toliau jei mažesnioji dalis mazgų neveikia ar yra nepasiekiama. Tam reikia išspręsti konsensuso problemą -- kaip mazgai gali pasiekti susitarimą kokia yra jų bendra būseną, net kai dalis mazgų gali būti nepasiekiami ar jų duomenys pasenę?
 
-Šiame darbe išnagrinėti Raft~\cite{ongaro_consensus} konsensuso algoritmo praplėtimai naudojami Ra~\cite{rabbitmqra} bibliotekoje. \textbf{Darbo tikslas yra patikrinti, ar Raft algoritmas, praplėstas Ra naudojamais praplėtimais vis dar atitinka pagrindines Raft algoritmo savybes}: lyderio rinkimų saugumą; lyderio žurnale esamų įrašų uždarumą modifikacijoms; visų žurnalų įrašų atitikimą; lyderio žurnalo pilnumą; ir sistemos kaip būsenų mašinos saugumą~\cite{ongaro_consensus}. \TD{ateity pridėti nuorodą į detalesnius savybių aprašymus, į dėstymo skyrių}
+Formaliai, paskirstyta sistema yra skaičiavimų elementų (toliau - mazgų) rinkinys, kuris yra naudojamas kaip vientisa sistema~\cite{steen_distributed_2017}. Paskirstytose sistemose konsensuso algoritmai yra reikalingi būsenų sinchronizavimui tarp sistemos mazgų. Konsensuso algoritmas turi užtikrinti, kad sistema būtų prieinama vieno ar daugiau mazgų gedimo ar neprieinamumo atvejais~\cite{ongaro_consensus}. 
 
-\textbf{Šio darbo uždaviniai yra:}
-\begin{itemize}
-    \item Išnagrinėti Raft algoritmą ir biblioteką Ra.
-    \item Pateikti esamos literatūros apie Raft algoritmą ir Ra įgyvendinimo apžvalgą.
-    \item Išanalizuoti Ra padarytus praplėtimus ir jų įtaką Raft algoritmui.
-    \item Pateikti formalią specifikaciją Ra algoritmo praplėtimams.
-\end{itemize}
+Šiame darbe išnagrinėti Raft~\cite{ongaro_consensus} konsensuso algoritmo praplėtimai naudojami Ra bibliotekoje. Darbo tikslas yra patikrinti, ar Raft algoritmas, praplėstas Ra naudojamais mazgų neveikimo aptikimo praplėtimais vis dar atitinka pagrindines Raft algoritmo savybes ir užtikrina efektyvų mazgų neveikimo aptikimą. ~\cite{ongaro_consensus, rabbitmqra}.
 
-\TD{trumpai apie darbo rezultatą}
+Šiame darbe parodyta, kad Raft algoritmo bibliotekoje Ra naudojami gimtieji Erlang mazgų neveikimo aptikimo metodai atitinka Raft algoritmo aprašytus širdies plakimo (angl. \textit{heartbeat}) procedūras. Ra greičiau suvaldo atvejus, kai mazgas netikėtai nustoja veikti (angl. \textit{crash}), o jei mazgas yra nepasiekiamas ar lėtas, negyvybingumo aptikimo greitis atitinką Raft popieriuje aprašytus scenarijus.
 
-%Medžiagos darbo tema dėstymo skyriuose pateikiamos nagrinėjamos temos detalės:
-%pradinė medžiaga, jos analizės ir apdorojimo metodai, sprendimų įgyvendinimas,
-%gautų rezultatų apibendrinimas. Šios dalies turinys labai priklauso nuo darbo
-%temos. Skyriai gali turėti poskyrius ir smulkesnes sudėtines dalis, kaip
-%punktus ir papunkčius.
-%
-%Medžiaga turi būti dėstoma aiškiai, pateikiant argumentus. Tekstas dėstomas
-%trečiuoju asmeniu, t.y. \enquote{rašoma} ne „aš manau“, bet „autorius mano“, „autoriaus
-%nuomone“. Reikėtų vengti informacijos nesuteikiančių frazių, pvz., „...kaip jau
-%buvo minėta...“, „...kaip visiems žinoma...“ ir pan., vengti grožinės literatūros
-%ar publicistinio stiliaus, gausių metaforų ar panašių meninės išraiškos
-%priemonių.
+Šis darbas yra paskirstytas į tris dalis. Pirmoje dalyje yra apžvelgiamas Raft algoritmas ir detaliau išnagrinėjami kelių jo dalių, susijusiu su mazgų neveikimo aptikimų, veikimo principai. Antroje dalyje yra aprašomos Raft algoritmo bibliotekoje Ra naudojamos kalbos Erlang ypatybės ir apžvelgiami Ra padaryti praplėtimai. Trečioje dalyje detaliau aprašomas Ra naudojami mazgų neveikimo aptikimo metodai ir jie yra palyginami su Raft popieriuje pasiūlytų sprendimu.
 
 \section{Raft algoritmo apžvalga}
 
 Raft yra grupė algoritmų naudojamų konsensusui pasiekti paskirstytoje sistemoje. Raft korektiškumas yra įrodytas formalia TLA$^+$ specifikacija~\cite{ongaro_consensus} ir naudojimu industrijoje -- Raft naudojamas etcd\footnote{https://etcd.io/}, Consul\footnote{https://www.consul.io/docs/internals/consensus.html} ir CockroachDB\footnote{https://www.cockroachlabs.com/docs/stable/architecture/replication-layer.html} projektuose. 
 
 Raft algoritmo kontekste sistema yra būsenų mašina, kuri priima iš klientų komandų įrašus. Kiekvienas įrašas yra komandos, norimos įvykdyti sistemai, aprašymas. Įvykdant komandą, sistema pakeičia savo vidinę būseną ir grąžina klientui rezultatą -- savo atnaujintą būseną ar jos dalį. Atitinkamai, paskirstyta sistema susideda iš mazgų, kurie irgi yra būsenų mašinos, turinčios savo įrašų žurnalus ir vidines būsenas. Toks paskirstytos sistemos išdėstymas leidžia pasiekti aukštą gedimų toleravimo ir greičio lygį~\cite{ongaro_consensus, steen_distributed_2017}.
-
-Paskirstytos sistemos veikimo metu gali būti situacijų, kai kelių mazgų būsenos yra skirtingos. Pavyzdžiui, kai vienas iš mazgų trumpam laikui tampa neprieinamas. Mazgų būsenos gali išsiskirti, ir iš skirtingų mazgų klientui gali būti grąžinami skirtingi rezultatai. Tai pažeistų sistemos kaip vienos didelės būsenų mašinos vientisumą. Todėl būtina sinchronizuoti būsenas tarp mazgų ir tuo pačiu metu leisti sistemai veikti toliau jei mažesnioji dalis mazgų neveikia ar yra nepasiekiama. Tam reikia išspręsti konsensuso problemą -- kaip mazgai gali pasiekti susitarimą kokia yra jų bendra būseną, net kai kai kurie iš mazgų gali būti neveikiantys ar jų duomenys pasenę?
 
 Raft algoritmas buvo sukurtas kaip lengviau suprantama alternatyva tuo metu labiausiai paplitusiam Paksos\footnote{http://lamport.azurewebsites.net/pubs/paxos-simple.pdf} konsensuso algoritmui~\cite{ongaro_consensus, diego_designing_2016}. Raft autoriai, atlikus vartotojų tyrimą, parodė, kad Raft algoritmas yra lengviau suprantamas negu Paksos, iš ko seka mažesni įgyvendinimo kaštai, mažesnis galimų klaidų skaičius ir paprastesnis bazinio algoritmo praplėtimas~\cite{ongaro_consensus}. Raft leidžia užtikrinti sistemos gyvumą ir saugumą kol veikia daugiau negu pusė paskirstytos sistemos mazgų. Raft algoritmas remiasi lyderio išrinkimu -- vienas iš mazgų tampa lyderiu ir yra laikoma kad lyderio žurnalas yra tiesos šaltinis. Visos klientų užklausos yra siunčiamos lyderiui, kuris persiunčia įrašus kitiems mazgams (sekėjams). Kai dauguma mazgų turi informaciją apie naują įrašą, mazgai užfiksuoja įrašą savo žurnale ir įvykdo įraše nurodytą komandą. Jei nustoja veikti sekėjas, sistema tęsia darbą, kol yra veikiančių mazgų dauguma. Nustojus veikti lyderiui, nesulaukę lyderio gyvumo patvirtinimo, kiekvienas mazgas po atsitiktinio dydžio laiko pradeda rinkimus. Išsirinkus naują lyderį sistemą gali tęsti darbą~\cite{ongaro_consensus}. 
 
@@ -102,13 +81,13 @@ Toliau detaliau apžvelgsime kaip Raft užtikrina tai, kad galiausiai būtų iš
 
 Pagal Raft, mazgas kuris yra lyderis periodiškai siunčia savo sekėjams tuščias įrašo pridėjimo užklausas (\texttt{AppendEntries}), taip užtikrinant savo ,,širdies plakimą'' (angl. \textit{heartbeat})~\cite{ongaro_consensus}. Jeigu sekėjas kažkurį laiką negauna užklausų iš lyderio, sekėjas pradeda naujus rinkimus ir pasisiūlo kaip kandidatas į naują lyderį. Laikas, po kurio sekėjas pradės naujo termino rinkimus vadinamas \textit{rinkimų laiku} (angl. \textit{election timeout}). Rinkimų laikas yra atsitiktinė reikšmė iš pasirinkto laiko intervalo, kas padeda greičiau išrinkti naują lyderį kai yra daugiau negu vienas kandidatas~\cite{ongaro_consensus}.
 
-Kad pradėtų rinkimus, sekėjas tampa kandidatu, balsuoja šiame rinkimų termine už save, ir išsiunčia visiems kitiems mazgams prašymo balsuoti užklausas (\texttt{RequestVote}). Mazgas per rinkimų terminą gali balsuoti tik už vieną mazgą. Galiausiai: arba kandidatas laimi rinkimus, arba kitas mazgas laimi rinkimus, arba lyderis nėra išrenkamas ir pradedamas naujas balsavimas~\cite{ongaro_consensus}.
+Kad pradėtų rinkimus, sekėjas tampa kandidatu, balsuoja šiame rinkimų termine už save, ir išsiunčia visiems kitiems mazgams prašymo balsuoti užklausas (\texttt{RequestVote}). Mazgas per rinkimų terminą gali balsuoti tik už vieną kitą mazgą. Galiausiai: arba kandidatas laimi rinkimus, arba kitas mazgas laimi rinkimus, arba lyderis nėra išrenkamas ir pradedamas naujas balsavimas~\cite{ongaro_consensus}.
 
 \subsection{Raft įrašų perdavimas}
 
-Išrinktas lyderis aptarnauja klientus. Iš kliento lyderis gauną užklausą, kurioje nusakytas veiksmas, kurį reikia atlikti paskirstytai sistemai kaip būsenų mašinai. Gautą žinutę lyderis prideda į savo žurnalą kaip naują įrašą, tada asinchroniškai išsiunčia įrašo pridėjimo užklausas sekėjams. Kai dauguma sekėjų sėkmingai prideda įrašą į savo žurnalą, lyderis įvykdo atitinkamą veiksmą savo būsenų mašinai ir grąžina rezultatą klientui~\cite{ongaro_consensus}. 
+Išrinktas lyderis aptarnauja klientus; jei užklausas iš klientų gautų mazgas kuris nėra lyderis, jis persiunčia užklausą lyderiui. Iš kliento lyderis gauną užklausą, kurioje nusakytas veiksmas, kurį reikia atlikti paskirstytai sistemai kaip būsenų mašinai. Gautą žinutę lyderis prideda į savo žurnalą kaip naują įrašą, tada asinchroniškai išsiunčia įrašo pridėjimo užklausas sekėjams. Kai dauguma sekėjų sėkmingai prideda įrašą į savo žurnalą, lyderis įvykdo atitinkamą veiksmą savo būsenų mašinai ir grąžina rezultatą klientui~\cite{ongaro_consensus}. 
 
-Net jei dalis mazgų nustojo veikti ar yra lėti, lyderis pakartotinai siunčia įrašų pridėjimo užklausas tiems sekėjams, kurie dar nepatvirtino įrašo gavimą. Galiausiai visi mazgai turės visus žurnalo įrašus. Šis pakartotinio informacijos siuntimo procesas gali vykti net jau lyderiui išsiuntus atsakymą klientui~\cite{ongaro_consensus}.
+Net jei dalis mazgų nustojo veikti ar lėtai grąžina atsakymus, lyderis pakartotinai siunčia įrašų pridėjimo užklausas tiems sekėjams, kurie dar nepatvirtino įrašo gavimo. Galiausiai visi mazgai turės visus žurnalo įrašus. Šis pakartotinio informacijos siuntimo procesas gali vykti net jau lyderiui išsiuntus atsakymą klientui, tai užtikrinant sistemos gyvybingumą kai mažesnioji dalis mazgų yra nepasiekiami~\cite{ongaro_consensus}.
 
 \section{Raft algoritmo įgyvendinimas Ra}
 
@@ -126,8 +105,7 @@ Paskirstytas programavimas Erlang yra pagrįstas aktorių modeliu\cite{farrugia_
 
 Erlang mazgai gali būti paskirstyti per daugiau negu vieną mašiną ir bendrauja vienas su kitu tranzityvinių ryšiu pagalba. Kai vienas iš mazgų sudaro ryšį su kitu mazgų (pavyzdžiui, panaudojus \texttt{net\_kernel:connect/1}), mazgai apsikeičia žinomais mazgais ir taip sudaro vieną mazgų tinklą. Erlang mazgų sistema yra labai lanksti ir leidžia vienam iš mazgų deleguoti kitam mazgui laisvai pasirinktą funkciją vykdymui (angl. \textit{arbitrary code execution}). \texttt{net\_kernel} modulio pagalba vienas iš mazgų gali prenumeruoti mazgų statusų pakeitimų žinučių gavimą. Tokiu atveju, pasikeitus žinomo mazgo statusui, prenumeravęs mazgas gaus pranešimą su nauju mazgo statusu~\cite{erlang_distributed, hebert_learn_2013}. Ra bibliotekos atveju, didžiausią sistemos prieinamumą suteiks nelyginio skaičiaus mašinų su vienu Erlang mazgu vykdančių Ra kodą kiekvienoje mašinoje paskirstytos sistemos architektūra.
 
-\TD{where was I going with this}
-Ra bibliotekoje yra naudojamas OTP karkasas. \texttt{gen\_statem} naudojamas Raft mazgų būsenoms ir pereimams tarp jų aprašyti. \texttt{gen\_event} naudojamas 
+Ra bibliotekoje yra naudojamas OTP karkaso \texttt{gen\_statem} Raft mazgų būsenoms ir perejimams tarp jų aprašyti,
 
 \subsection{Ra įgyvendinti Raft algoritmo praplėtimai}
 
@@ -148,12 +126,9 @@ Erlang monitoriai leidžia greitai aptikti mazgų neveikimą kodo klaidos metimo
 Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem}\footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
 Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką.
 
-\section{Raft Ra praplėtimų korektiškumas}
-\TD{parodyti kad (dalis) praplėtimų yra korektiški, galimai TLA+ pagalba}
+\section{Raft Ra klaidų aptikimo praplėtimo korektiškumas}
 
-\subsection{Praplėtimas - Log replication}
 
-\subsection{Praplėtimas - Failure Detection}
 
 \sectionnonum{Rezultatai ir išvados}
 
