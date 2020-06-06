@@ -5,7 +5,7 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{bm}
-\usepackage{caption}
+\usepackage[margin=50pt]{caption}
 \usepackage{color}
 \usepackage{float}
 \usepackage{graphicx}
@@ -68,41 +68,81 @@ Raft algoritmo kontekste sistema yra būsenų mašina, kuri priima iš klientų 
 
 Raft algoritmas remiasi lyderio išrinkimu -- vienas iš mazgų tampa lyderiu, ir yra laikoma, kad lyderio žurnalas yra tiesos šaltinis. Visos klientų užklausos yra siunčiamos lyderiui, kuris persiunčia įrašus kitiems mazgams (sekėjams). Kai dauguma mazgų turi informaciją apie naują įrašą, mazgai užfiksuoja įrašą savo žurnale ir įvykdo įraše nurodytą komandą. Jei nustoja veikti sekėjas, sistema tęsia darbą, kol yra veikiančių mazgų dauguma. Nustojus veikti lyderiui, nesulaukę lyderio gyvumo patvirtinimo, kiekvienas mazgas po atsitiktinio dydžio laiko, pasirinkto iš nustatyto intervalo,  pradeda rinkimus. Rinkimai prasideda kai vienas iš mazgų padidina savo termino (kadencijos) reikšmę ir išsiunčia kitiems mazgams prašymo balsuoti užklausas. Išsirinkus naują lyderį sistemą gali tęsti darbą~\cite{ongaro_consensus}. 
 
-Sistemos mazgai turi laikiną atmintį, kurioje saugo dažnai naudojamą informaciją, ir ilgalaikę atmintį. Ilgalaikė atmintis turi informacijos apie sistemos konfigūracija, kuri yra reikalinga korektiškam Raft algoritmo veikimui. Taip pat ilgalaikėje atmintyje 
+Sistemos mazgai turi laikiną atmintį, kurioje saugo dažnai naudojamą informaciją, ir ilgalaikę atmintį. Ilgalaikė atmintis turi informacijos apie sistemos konfigūracija, kuri yra reikalinga korektiškam Raft algoritmo veikimui -- mazgai išsaugo savo dabartinį terminą ir už ką jame balsavo. Taip pat ilgalaikėje atmintyje saugomi užfiksuoti įrašai~\cite{ongaro_consensus}.
 
 Raft specifikacija garantuoja kad Raft algoritmas tenkina sekančias savybes~\cite{ongaro_consensus}: 
 
 \begin{enumerate}
-\item Lyderio išrinkimas: duotam lyderio terminui galiausiai bus išrinktas vienas lyderis.
+\item Lyderio išrinkimas: duotam lyderio terminui galiausiai bus išrinktas ne daugiau kaip vienas lyderis.
 \item Lyderio žurnalo uždarumas modifikacijoms: lyderis niekada nekeičia ir netrina įrašų savo žurnale, jis gali tik pridėti naujų įrašų.
-\item Žurnalų įrašų atitikimas: jeigu dviejų mazgų žurnalai turi įrašą su tuo pačiu indeksu ir terminu, tai tie įrašai yra lygūs.
+\item Žurnalų įrašų atitikimas: jeigu dviejų mazgų žurnalai turi įrašą su tuo pačiu indeksu ir terminu, tai tie įrašai yra lygūs ir visi abiejų žurnalų įrašai iki to indekso yra lygūs.
 \item Lyderio žurnalo pilnumas: jeigu žurnalo įrašas buvo užfiksuotas, tai visų sekančių terminų lyderiai turės tą užfiksuotą įrašą savo žurnale.
 \item Sistemos kaip būsenos mašinos saugumas: jei mazgas įvykdė žurnalo įrašą, joks kitas mazgas niekada neįvykdys skirtingo įrašo su tuo pačiu indeksu.
 \end{enumerate}
 
-Toliau detaliau apžvelgsime kaip Raft užtikrina tai, kad galiausiai būtų išrinktas mazgų lyderis ir kaip lyderis perduoda įrašus kitiems mazgams.
+Toliau detaliau apžvelgsime kaip Raft užtikrina, kad galiausiai būtų išrinktas mazgų lyderis, kaip lyderis perduoda įrašus kitiems mazgams, ir kaip Raft elgiasi nutikus mazgų tinklo lūžiams.
 
 \subsection{Raft lyderio išrinkimas}
 
-Pagal Raft, mazgas kuris yra lyderis periodiškai siunčia savo sekėjams tuščias įrašo pridėjimo užklausas (\texttt{AppendEntries}), taip užtikrinant savo ,,širdies plakimą'' (angl. \textit{heartbeat})~\cite{ongaro_consensus}. Jeigu sekėjas kažkurį laiką negauna užklausų iš lyderio, sekėjas pradeda naujus rinkimus ir pasisiūlo kaip kandidatas į naują lyderį. Nuosekliai auganti reikšmė nurodanti dabartinio lyderio kadencijos numeri vadinama \textit{terminas} (angl. \emph{term}), o laikas, po kurio sekėjas pradės naujo termino rinkimus vadinamas \textit{rinkimų laiku} (angl. \textit{election timeout}) . Rinkimų laikas yra atsitiktinė reikšmė iš pasirinkto laiko intervalo, kas padeda greičiau išrinkti naują lyderį kai yra daugiau negu vienas kandidatas~\cite{ongaro_consensus}.
+Pagal Raft, mazgas--lyderis periodiškai siunčia savo sekėjams tuščias įrašo pridėjimo užklausas (\texttt{AppendEntries}), taip užtikrinant savo ,,širdies plakimą'' (angl. \textit{heartbeat})~\cite{ongaro_consensus}. Jeigu sekėjas kažkurį laiką negauna užklausų iš lyderio, sekėjas pradeda naujus rinkimus ir pasisiūlo kaip kandidatas į naują lyderį. Nuosekliai auganti reikšmė, nurodanti dabartinio lyderio kadencijos numerį, vadinama \textit{terminas} (angl. \emph{term}), o laikas, po kurio sekėjas pradės naujo termino rinkimus vadinamas \textit{rinkimų laiku} (angl. \textit{election timeout}) . Rinkimų laikas yra atsitiktinė reikšmė iš pasirinkto laiko intervalo, kas padeda greičiau išrinkti naują lyderį kai yra daugiau negu vienas kandidatas~\cite{ongaro_consensus}.
 
-Kad pradėtų rinkimus, sekėjas tampa kandidatu, balsuoja šiame rinkimų termine už save, ir išsiunčia visiems kitiems mazgams prašymo balsuoti užklausas (\texttt{RequestVote}). Mazgas per rinkimų terminą gali balsuoti tik už vieną kitą mazgą. Galiausiai: arba kandidatas laimi rinkimus, arba kitas mazgas laimi rinkimus, arba lyderis nėra išrenkamas ir pradedamas naujas balsavimas~\cite{ongaro_consensus}.
+Rinkimų pradžioje, sekėjas tampa kandidatu, balsuoja šiame rinkimų termine už save, ir išsiunčia visiems kitiems mazgams prašymo balsuoti užklausas (\texttt{RequestVote}). Mazgas per rinkimų terminą gali balsuoti tik už vieną kitą mazgą. Mazgai balsuoją už pirmą mazgą, kuris šiame termine atsiuntė prašymą balsuoti. Mazgai nebalsuoja už kitą mazgą, jei tas mazgas yra pasenęs, tai yra to mazgo terminas yra mažesnis, o jei terminai lygūs, kandidato žurnalas turi mažiau įrašų. Galiausiai arba kandidatas laimi rinkimus, arba kitas mazgas--kandidatas laimi rinkimus, arba lyderis nėra išrenkamas ir pradedamas naujas balsavimas~\cite{ongaro_consensus}.
+
+Geresniam algoritmo supratimui, galima panagrinėti tokį Raft lyderio išrinkimo situacijos pavyzdį: yra penki mazgai pavadinimais \textit{S1}, \textit{S2}, \textit{S3}, \textit{S4} ir \textit{S5}. Kiekvienas iš jų ką tik startavo ir jokio lyderio kol kas nėra. Kiekvienas iš mazgų priskiria sau atsitiktinį rinkimų laiką iš intervalo, nustatyto sistemos konfigūracijoje. Rekomenduojama, kad apatinė šio intervalo riba būtų kelis kartus didesnė negu tikimasis žinučių uždelsimas tinkle. 
+
+Vizualizavimo pagalbai panaudosime RaftScope\footnote{https://github.com/ongardie/raftscope} programą. Paveikslėlyje \ref{fig:state_1} mazgus simbolizuoja apskritimai, o dabartinį mazgo terminą -- skaičius apskritime. Likęs rinkimų laikas pavaizduotas kaip pilkas apskritimų kraštas. Matome, kad visų serverių rinkimų laikai yra skirtingi ir pirmas tą laiką pasieks serveris \textit{S4}.
+
+\begin{figure}[H]
+\centering
+
+    \subfloat[]{
+        \includegraphics[width=0.45 \linewidth]{img/state_1.png}
+        \label{fig:state_1}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.45 \linewidth]{img/state_2.png}
+        \label{fig:state_2}
+
+    }
+    \caption{Kai tarp mazgų nėra lyderio, mazgas, kurio rinkimų laikas yra ankščiausiai (\textit{S4}), pirmas inicijuoja naujus rinkimus ir tampa kandidatu.}
+\end{figure}
+
+Kai ateina rinkimų laikas, mazgas tampa kandidatu ir yra pradedami nauji lyderio rinkimai. \textit{S4} padidina savo terminą, balsuoja šiame rinkimu termine už save ir išsiunčia kitiems mazgams (\textit{S1}, \textit{S2}, \textit{S3}, \textit{S5}) prašymą balsuoti už jį. Prie šios užklausos yra pridedama informacija apie \textit{S4} žurnalą, kad mazgai galėtų nuspręsti, ar kandidatas \textit{S4} yra tinkamas lyderis ir ar jam reikia atiduoti savo balsą. Mazgui \textit{S4} reikia surinkti tris iš penkių balsų, taip užtikrinus daugumos pritarimą. Paveikslėlyje \ref{fig:state_2} surinkti balsai pavaizduoti kaip užtušuoti juodi apskritimai viduje mazgo.
+
+\begin{figure}[H]
+\centering
+    \subfloat[]{
+        \includegraphics[width=0.45 \linewidth]{img/state_3.png}
+        \label{fig:state_3}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.45 \linewidth]{img/state_4.png}
+        \label{fig:state_4}
+    }
+    
+    \caption{Gavus daugumą balsų, mazgas--kandidatas (\textit{S4}) tampa lyderiu.}
+
+\end{figure}
+
+\ref{fig:state_3} \textit{S4} jau surinko du balsus -- vieną iš savęs, kitą iš kito mazgo. Gavus trečią, paskutinį reikalingą, balsą, \textit{S4} tampa lyderiu ir išsiunčia kitiems mazgams savo širdies plakimo užklausą (žr. pav. \ref{fig:state_4}). Gavus lyderio užklausą, kiti mazgai iš naujo nustato rinkimų laiką. 
 
 \subsection{Raft įrašų perdavimas}
 
-Išrinktas lyderis aptarnauja klientus; jei užklausas iš klientų gautų mazgas kuris nėra lyderis, jis persiunčia užklausą lyderiui. Iš kliento lyderis gauną užklausą, kurioje nusakytas veiksmas, kurį reikia atlikti paskirstytai sistemai kaip būsenų mašinai. Gautą žinutę lyderis prideda į savo žurnalą kaip naują įrašą, tada asinchroniškai išsiunčia įrašo pridėjimo užklausas sekėjams. Kai dauguma sekėjų sėkmingai prideda įrašą į savo žurnalą, įrašas yra pažymimas kaip užfiksuotas (angl. \textit{committed}), įvykdomas atitinkamas įrašo veiksmas mazgų būsenų mašinoms ir lyderis grąžina rezultatą klientui~\cite{ongaro_consensus}. 
+Išrinktas lyderis aptarnauja klientus; jei užklausas iš klientų gauna mazgas kuris nėra lyderis, jis persiunčia užklausą lyderiui. Iš kliento lyderis gauna užklausą su nusakytu veiksmu, kurį reikia atlikti paskirstytai sistemai kaip būsenų mašinai. Gautą žinutę lyderis prideda į savo žurnalą kaip naują įrašą, tada asinchroniškai išsiunčia įrašo pridėjimo užklausas sekėjams. Kai dauguma sekėjų sėkmingai prideda įrašą į savo žurnalą, įrašas yra pažymimas kaip užfiksuotas (angl. \textit{committed}), įvykdomas atitinkamas įrašo veiksmas mazgų būsenų mašinoms ir lyderis grąžina rezultatą klientui~\cite{ongaro_consensus}. 
 
-Net jei dalis mazgų nustojo veikti ar lėtai grąžina atsakymus, lyderis pakartotinai siunčia įrašų pridėjimo užklausas tiems sekėjams, kurie dar nepatvirtino įrašo gavimo. Galiausiai visi mazgai turės visus žurnalo įrašus. Šis pakartotinio informacijos siuntimo procesas gali vykti net jau lyderiui išsiuntus atsakymą klientui, tai užtikrinant sistemos gyvybingumą kai mažesnioji dalis mazgų yra nepasiekiami~\cite{ongaro_consensus}.
+Net jei dalis mazgų nustojo veikti ar lėtai grąžina atsakymus, lyderis pakartotinai siunčia įrašų pridėjimo užklausas tiems sekėjams, kurie dar nepatvirtino įrašo gavimo. Galiausiai visi mazgai turės visus žurnalo įrašus. Šis pakartotinio informacijos siuntimo procesas gali vykti net jau lyderiui išsiuntus atsakymą klientui. Tai užtikrina sistemos gyvybingumą kai mažesnioji dalis mazgų yra nepasiekiami~\cite{ongaro_consensus}.
 
 \subsection{Raft mazgų tinklo lūžių neigiamų pasekmių sumažinimas}
 
-Pagal Raft, nutikus mazgų tinklo lūžiui, tai yra, daliai mazgų tapus nepasiekiamiems kitai daliai mazgų, įvyksta papildomas lyderio išrinkimas -- atsijungusi dalis mazgų nepasiekia buvusio lyderio ir, praėjus rinkimų laikui, pradeda naują terminą. Kaip pasekmė, susijungus šioms mazgų dalims atgal į vieną tinklą, didesnė dalis mazgų gauna užklausas iš mažesnės dalies mazgų, kuriuose nurodytas terminas yra aukštesnis. Tada didesnės dalies mazgų lyderis atsistatydina, ir prasideda nauji rinkimai~\cite{ongaro_consensus}. Jeigu per lūžio laiką buvo užfiksuota naujų įrašų (jie galėjo būti užfiksuoti tik didesnėje dalyje mazgų, nes mažesnėje nebūtų galima gauti daugumos patvirtinimo), tai reikštų kad lyderiu galėtų būti išrinktas tik vienas iš didesnės mazgų grupės narių, ir tikrai galėtų būti esantis lūžio metu pabaigoje lyderis. Taigi, yra vykdomi du papildomi rinkimai, kai galėtų būti paliktas esamas lyderis.
+Pagal klasikinį Raft, nutikus mazgų tinklo lūžiui, tai yra kai dalis mazgų tampa nepasiekiama kitai daliai mazgų, įvyksta papildomas lyderio išrinkimas -- atsijungusi dalis mazgų nepasiekia buvusio lyderio ir, praėjus rinkimų laikui, pradeda naują terminą (padidina kadencijos numerį). Kaip pasekmė, susijungus šioms mazgų dalims atgal į vieną tinklą, didesnė dalis mazgų gauna užklausas iš mažesnės dalies mazgų, kuriuose nurodytas terminas yra didesnis. Tada didesnės dalies mazgų lyderis atsistatydina, ir prasideda nauji rinkimai~\cite{ongaro_consensus}. Per lūžio laiką nauji įrašai galėtų būti užfiksuoti tik didesnėje dalyje mazgų, nes mažesnėje nebūtų galima gauti daugumos patvirtinimo. Jeigu per lūžio laiką buvo užfiksuota naujų įrašų, tai reikštų kad lyderiu galėtų būti išrinktas tik vienas iš tos didesnės mazgų grupės narių. Vienas iš šitų mazgų yra lūžio pabaigoje esantis lyderis. Taigi, yra vykdomi papildomi rinkimai, nors galėtų būti paliktas esamas lyderis.
 
-Šioms klasterių apjungimo pasekmėms pašalinti Raft autoriai siūlo įvesti dar vieną mazgų būseną tarp "sekėjo" ir "kandidato" būsenų -- "pirminis balsavimas" (angl. \textit{pre-vote}). Šioje būsenoje kandidatas pradeda lyderio rinkimus tik sužinojęs, kad dauguma mazgų balsuotų už jį kaip lyderį. Šis sprendimas išsprendžia trikdžius daliai mazgų prisijungiant atgal į didesnį mazgų klasterį~\cite{ongaro_consensus}.
+Šioms klasterių apjungimo pasekmėms pašalinti Raft autoriai siūlo padaryti algoritmo praplėtimą: įvesti dar vieną mazgų būseną tarp "sekėjo" ir "kandidato" būsenų -- "pirminis balsavimas" (angl. \textit{pre-vote}). Šioje būsenoje kandidatas pradeda lyderio rinkimus tik sužinojęs, kad dauguma mazgų balsuotų už jį kaip lyderį. Mazgo terminas šioje būsenoje nėra padidinamas. Šis sprendimas išsprendžia trikdžius daliai mazgų prisijungiant atgal į didesnį mazgų klasterį, nes maž~\cite{ongaro_consensus}.
 
 \section{Raft algoritmo įgyvendinimas Ra}
 
-Šioje dalyje yra apžvelgiama Raft algoritmo įgyvendinimas Ra. Ra yra atviro kodo Raft algoritmo biblioteka, naudojama atviro kodo žinučių brokerio RabbitMQ\footnote{https://www.rabbitmq.com/}. Ra biblioteka yra naudojama RabbitMQ komandos paskirstytoms eilėms įgyvendinti, tačiau yra laisvai prieinama ir gali būti naudojama kaip bendra Raft biblioteka. Ra yra įgyvendinta Erlang\footnote{https://www.erlang.org/} kalba.
+Šioje dalyje yra apžvelgiamas Raft algoritmo įgyvendinimas Ra. Ra yra atviro kodo Raft algoritmo biblioteka, naudojama atviro kodo žinučių brokerio RabbitMQ\footnote{https://www.rabbitmq.com/}. Ra biblioteka yra naudojama RabbitMQ komandos paskirstytoms eilėms įgyvendinti, tačiau yra laisvai prieinama ir gali būti naudojama kaip bendra Raft biblioteka. Ra yra įgyvendinta Erlang\footnote{https://www.erlang.org/} kalba.
 
 Nors didžioji dalis Raft algoritmo savybių yra įgyvendintos pagal Raft specifikaciją, dėl Erlang kalbos ypatybių ir konkrečių naudojimo scenarijų Ra išsiskiria nuo specifikacijos, pavyzdžiui, žurnalo perdavimo ir gedimų aptikimo algoritmais~\cite{rabbitmqra}.
 
