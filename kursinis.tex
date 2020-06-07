@@ -14,7 +14,7 @@
 \usepackage{wrapfig}
 \usepackage{fontspec}
 \usepackage{todonotes}
-\newcommand{\TD}[1]{\todo[inline, color=red!40]{#1}}
+%\newcommand{\TD}[1]{\todo[inline, color=red!40]{#1}}
 
 % Titulinio aprašas
 \university{Vilniaus universitetas}
@@ -42,7 +42,7 @@
 
 \begin{document}
 \maketitle
-\listoftodos
+% \listoftodos
 \tableofcontents
 
 \sectionnonum{Įvadas}
@@ -55,8 +55,7 @@ Formaliai, paskirstyta sistema yra skaičiavimų elementų (toliau - mazgų) rin
 
 Šiame darbe parodyta, kad Raft algoritmo bibliotekoje Ra naudojami gimtieji Erlang mazgų neveikimo aptikimo metodai atitinka Raft algoritmo aprašytus širdies plakimo (angl. \textit{heartbeat}) procedūras. Ra suvaldo atvejus, kai mazgas netikėtai nustoja veikti (angl. \textit{crash}), o jei mazgas yra nepasiekiamas ar lėtas, negyvybingumo aptikimo algoritmas atitinka Raft popieriuje aprašytus scenarijus.
 
-\TD{tai kiek dalių lieka - 2/3?}
-Šis darbas yra paskirstytas į tris dalis. Pirmoje dalyje yra apžvelgiamas Raft algoritmas ir detaliau išnagrinėjami kelių jo dalių, susijusių su mazgų neveikimo aptikimu, veikimo principai. Antroje dalyje yra aprašomos Raft algoritmo bibliotekoje Ra naudojamos kalbos Erlang ypatybės ir išnagrinėjami Ra padaryti praplėtimai. Trečioje dalyje detaliau aprašomi Ra naudojami mazgų neveikimo aptikimo metodai ir jie yra palyginami su Raft popieriuje pasiūlytu sprendimu.
+Šis darbas yra paskirstytas į dvi dalis. Pirmoje dalyje yra apžvelgiamas Raft algoritmas ir detaliau išnagrinėjami kelių jo dalių, susijusių su mazgų neveikimo aptikimu, veikimo principai. Antroje dalyje yra aprašomos Raft algoritmo bibliotekoje Ra naudojamos kalbos Erlang ypatybės ir išnagrinėjami Ra padaryti praplėtimai, yra detaliau išnagrinėjami Ra naudojami mazgų neveikimo aptikimo metodai ir jie yra palyginami su Raft popieriuje pasiūlytu sprendimu.
 
 \section{Raft algoritmo apžvalga}
 
@@ -166,7 +165,7 @@ Dėl Erlang kalbos ypatybių, konkretaus naudojimo scenarijaus ir siekio optimiz
 
 Ra nenaudoja žurnalo įrašų perdavimo užklausų mazgų gyvybingumui užtikrinti kai visų mazgų žurnalai yra sinchronizuoti. Kai vienas iš mazgų yra pasenęs, tai yra, to mazgo paskutinis sinchronizuotas įrašas yra ankstesnis negu paskutinis įrašas, siųstas lyderio tam mazgui, \texttt{AppendEntries} užklausa yra daroma, bet rečiau, negu pasiūlyta Raft specifikacijoje. Jei skirtumas tarp paskutinio sinchronizuoto įrašo ir paskutinio siųsto įrašo yra labai didelis, mazgo apkrovai sumažinti užklausos nėra siunčiamos~\cite{rabbitmqra}. Žurnalų įrašų perdavimas yra vykdomas asinchroniškai, o atsakymai yra grupuojami~\cite{rabbitmqra}.
 
-Ra \texttt{AppendEntries} užklausa naudoja tris nestandartinius laukus: \texttt{last\_index}, \texttt{last\_term}, \texttt{next\_index}. \texttt{last\_index} ir \texttt{last\_term} naudojami lyderio naujam \texttt{commit\_index} apskaičiuoti. \texttt{next\_index} naudojamas kai sekėjui nepavyksta atnaujinti žurnalo, tada šio lauko reikšmė nurodo nuo kurio žurnalo įrašo reikia tęsti žurnalo įrašų siuntimą~\cite{rabbitmqra}.
+Šiuo praplėtimo atveju Ra autoriai išnaudojo Erlang kalbos galimybes, nes Erlang leidžia palaikyti ryšį tarp mazgų išreikštinai nesiunčiant papildomų užklausų. Nesiunčiant papildomų užklausų taip pat yra atlaisvinamas ryšio kanalas, leidžiant pačiam Erlang efektyviai palaikyti ryšius ir daryti širdies plakimo užklausas. Taigi, Ra funkcionalumas atitinka Raft specifikaciją. Dėl šitos priežasties galima teigti, kad Ra autoriai laikėsi Raft specifikacijos ir nepažeidė Raft nustatytų algoritmo savybių praplečiant žurnalo perdavimo algoritmą.      
 
 \subsubsection{Ra gedimų aptikimo algoritmas}
 
@@ -177,14 +176,15 @@ Erlang monitoriai leidžia greitai aptikti mazgų neveikimą kodo klaidos metimo
 Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem} \footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
 Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką. Neprieinamumo tikrinimo laiką \texttt{ticktime} naudotojas nustato pagal savo poreikį konfigūracinio parametro pagalba.
 
-Ra  naudoja Raft darbe aprašyta "pirminio balsavimo" praplėtimą, tai yra tarp sekėjo ir kandidato būsenų yra papildoma būsena \texttt{pre-vote}. Ra šis praplėtimas realizuotas kaip papildoma \texttt{gen\_statem} funkcija.
+Ra naudoja Raft darbe aprašyta "pirminio balsavimo" praplėtimą, tai yra tarp sekėjo ir kandidato būsenų yra papildoma būsena ,,pirminis balsavimas''. Ra šis praplėtimas realizuotas kaip papildoma \texttt{gen\_statem} funkcija.
 
+Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai leidžia palengvinti įgyvendinimo kaštus, nes didžioji dalis širdies plakimo mechanizmo algoritmo yra paimama iš Erlang OTP bibliotekos. Mazgui netikėtai nustojus veikti, klaida bus aptikta iškarto, o mazgui lėtai atsakant ar ryšiui nutrūkus, širdies plakimo mechanizmas atitinka Raft specifikaciją ir išsaugo Raft savybes.
 
 \sectionnonum{Rezultatai ir išvados}
 
 Šiame darbe buvo išnagrinėtas Raft algoritmas ir jo įgyvendinimas -- Ra biblioteka. Detaliau buvo palyginti Raft darbe aprašyti mazgų negyvybingumo aptikimo algoritmai su Ra naudojamais Erlang mazgų stebėjimo infrastruktūra. Nustatyta, kad Raft pasiūlytas mechanizmas, ir Ra naudojamas Erlang gimtasis funkcionalumas, yra to paties širdies plakimo algoritmo įgyvendinimai ir esminių skirtumų tarp jų nėra. Todėl teigiama, kad Ra įgyvendinimas yra korektiškas ir išlaiko Raft savybes.
 
-Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimtosios Erlang funkcijos ir bibliotekos yra skirtos būtent tokių paskirstytų sistemų būsenų stebėjimui, todėl įgyvendinimo kaštai yra dar labiau sumažinami. Visa tai gerai komponuoja su Raft autorių motyvacija~\cite{ongaro_consensus} -- padaryti paskirstytų sistemų konsensuso algoritmo įgyvendinimą kuo paprastesnį, sumažinti galimų klaidų skaičių, leisti kuo lengviau papildyti esamą funkcionalumą naujais praplėtimais. Šio darbo autorių nuomone, Ra biblioteka yra ne tik puikus techninio Raft algoritmo įgyvendinimo, bet ir Raft paprastumo ir aiškumo dvasią išlaikantis pavyzdys. 
+Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimtosios Erlang funkcijos ir bibliotekos yra skirtos būtent tokių paskirstytų sistemų būsenų stebėjimui, todėl įgyvendinimo kaštai yra dar labiau sumažinami. Visa tai gerai komponuoja su Raft autorių motyvacija~\cite{ongaro_consensus} -- padaryti paskirstytų sistemų konsensuso algoritmo įgyvendinimą kuo paprastesnį, sumažinti galimų klaidų skaičių, leisti kuo lengviau papildyti esamą funkcionalumą naujais praplėtimais. Šio darbo autorių nuomone, Ra biblioteka yra ne tik puikus techninio Raft algoritmo įgyvendinimo, bet ir Raft paprastumo ir aiškumo dvasią išlaikančios bibliotekos pavyzdys. 
 
 %Rezultatų ir išvadų dalyje turi būti aiškiai išdėstomi pagrindiniai darbo
 %rezultatai (kažkas išanalizuota, kažkas sukurta, kažkas įdiegta) ir pateikiamos
@@ -199,12 +199,12 @@ Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimto
 % šaltinių, kurie nebuvo paminėti tekste.
 
 % \sectionnonum{Sąvokų apibrėžimai}
-\sectionnonum{Santrumpos}
+% \sectionnonum{Santrumpos}
 %Sąvokų apibrėžimai ir santrumpų sąrašas sudaromas tada, kai darbo tekste
 %vartojami specialūs paaiškinimo reikalaujantys terminai ir rečiau sutinkamos
 %santrumpos.
 
-\appendix  % Priedai
+% \appendix  % Priedai
 
 % Prieduose gali būti pateikiama pagalbinė, ypač darbo autoriaus savarankiškai
 % parengta, medžiaga. Savarankiški priedai gali būti pateikiami ir
