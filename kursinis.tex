@@ -188,8 +188,6 @@ Gimtieji Erlang monitoriai leidžia greitai aptikti mazgų neveikimą proceso l�
 Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem} \footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
 Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką. Neprieinamumo tikrinimo laiką \texttt{ticktime} naudotojas nustato pagal savo poreikį konfigūracinio parametro pagalba~\cite{rabbitmqra}.
 
-Ra naudoja Raft darbe aprašyta "pirminio balsavimo" praplėtimą, tai yra tarp sekėjo ir kandidato būsenų yra papildoma būsena ,,pirminis balsavimas''. Ra šis praplėtimas realizuotas kaip papildoma \texttt{gen\_statem} funkcija.
-
 Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai leidžia palengvinti įgyvendinimo kaštus, nes didžioji dalis širdies plakimo mechanizmo algoritmo yra paimama iš Erlang OTP bibliotekos. Mazgui netikėtai nustojus veikti, klaida bus aptikta iškarto, o mazgui lėtai atsakant ar ryšiui nutrūkus, širdies plakimo mechanizmas atitinka Raft specifikaciją ir išsaugo Raft savybes.
 
 \sectionnonum{Rezultatai ir išvados}
