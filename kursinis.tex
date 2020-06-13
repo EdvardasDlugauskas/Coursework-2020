@@ -14,6 +14,7 @@
 \usepackage{wrapfig}
 \usepackage{fontspec}
 \usepackage{todonotes}
+\usepackage{pdfpages}
 %\newcommand{\TD}[1]{\todo[inline, color=red!40]{#1}}
 
 % Titulinio aprašas
@@ -57,7 +58,7 @@ Formaliai, paskirstyta sistema yra skaičiavimų elementų (toliau - mazgų) rin
 
 Šio darbo tikslas yra patikrinti, ar Raft algoritmas, praplėstas Ra naudojamais mazgų neveikimo aptikimo praplėtimais, vis dar atitinka Raft algoritmo savybes ir užtikrina efektyvų mazgų neveikimo aptikimą~\cite{ongaro_consensus, rabbitmqra}.
 
-\textbf{Šio darbo uždaviniai yra:}
+Šio darbo uždaviniai yra:
 \begin{itemize}
     \item Išnagrinėti Raft algoritmą ir biblioteką Ra.
     \item Pateikti esamos literatūros apie Raft algoritmą ir Ra įgyvendinimo apžvalgą.
@@ -95,13 +96,13 @@ Toliau detaliau apžvelgiame kaip Raft užtikrina, kad galiausiai būtų išrink
 
 \subsection{Raft lyderio išrinkimas}
 
-Pagal Raft, mazgas--lyderis periodiškai siunčia savo sekėjams tuščias įrašo pridėjimo užklausas (\texttt{AppendEntries}), taip užtikrinant savo ,,širdies plakimą'' (angl. \textit{heartbeat})~\cite{ongaro_consensus}. Jeigu sekėjas kažkurį laiką negauna užklausų iš lyderio, sekėjas pradeda naujus rinkimus ir pasisiūlo kaip kandidatas į naują lyderį. Nuosekliai auganti reikšmė, nurodanti dabartinio lyderio kadencijos numerį, vadinamą \textit{terminu} (angl. \emph{term}), o laikas, po kurio sekėjas pradės naujo termino rinkimus vadinamas \textit{rinkimų laiku} (angl. \textit{election timeout}) . Rinkimų laikas yra atsitiktinė reikšmė iš pasirinkto laiko intervalo, kas padeda greičiau išrinkti naują lyderį kai yra daugiau negu vienas kandidatas~\cite{ongaro_consensus}.
+Pagal Raft, mazgas--lyderis periodiškai siunčia savo sekėjams tuščias įrašo pridėjimo užklausas (\texttt{AppendEntries}), taip užtikrinant savo ,,širdies plakimą'' (angl. \textit{heartbeat})~\cite{ongaro_consensus}. Jeigu sekėjas kažkurį laiką negauna užklausų iš lyderio, sekėjas pradeda naujus rinkimus ir pasisiūlo kaip kandidatas į naują lyderį. Nuosekliai auganti reikšmė, nurodanti dabartinio lyderio kadencijos numerį, vadinamą \textit{terminu} (angl. \emph{term}), o laikas, po kurio sekėjas pradės naujo termino rinkimus vadinamas \textit{rinkimų laiku} (angl. \textit{election timeout}). Rinkimų laikas yra atsitiktinė reikšmė iš pasirinkto laiko intervalo, kas padeda greičiau išrinkti naują lyderį kai yra daugiau negu vienas kandidatas~\cite{ongaro_consensus}.
 
 Rinkimų pradžioje, sekėjas tampa kandidatu, balsuoja šiame rinkimų termine už save, ir išsiunčia visiems kitiems mazgams prašymo balsuoti užklausas (\texttt{RequestVote}). Mazgas per rinkimų terminą gali balsuoti tik už vieną mazgą. Mazgai balsuoja už pirmą mazgą, kuris šiame termine atsiuntė prašymą balsuoti, arba už save, jei jie ką tik pradėjo rinkimus. Mazgai nebalsuoja už kitą mazgą, jei tas mazgas yra pasenęs, tai yra to mazgo terminas yra mažesnis, o jei terminai lygūs, kandidato žurnalas turi mažiau įrašų. Galiausiai arba kandidatas laimi rinkimus, arba kitas mazgas--kandidatas laimi rinkimus, arba lyderis nėra išrenkamas ir pradedamas naujas balsavimas~\cite{ongaro_consensus}.
 
 Geresniam algoritmo supratimui, galima panagrinėti tokį Raft lyderio išrinkimo situacijos pavyzdį: yra penki mazgai pavadinimais \textit{S1}, \textit{S2}, \textit{S3}, \textit{S4} ir \textit{S5}. Kiekvienas iš jų ką tik startavo ir jokio lyderio kol kas nėra. Kiekvienas iš mazgų priskiria sau atsitiktinį rinkimų laiką iš intervalo, nustatyto sistemos konfigūracijoje. Rekomenduojama, kad apatinė šio intervalo riba būtų kelis kartus didesnė negu tikimasis žinučių uždelsimas tinkle. 
 
-Vizualizavimo pagalbai panaudosime RaftScope~\cite{ongaro_raftscope_2020} programą. Paveikslėlyje \ref{fig:state_1} mazgus simbolizuoja apskritimai, o dabartinį mazgo terminą -- skaičius apskritime. Likęs rinkimų laikas pavaizduotas kaip pilkas apskritimų kraštas. Matome, kad visų serverių rinkimų laikai yra skirtingi ir pirmas tą laiką pasieks serveris \textit{S4}.
+Vizualizavimo pagalbai panaudosime RaftScope~\cite{ongaro_raftscope_2020} programą, kuri yra laisvai prieinama pagal MIT licenciją. Paveikslėlyje \ref{fig:state_1} mazgus simbolizuoja apskritimai, o dabartinį mazgo terminą -- skaičius apskritime. Likęs rinkimų laikas pavaizduotas kaip pilkas apskritimų kraštas. Matome, kad visų serverių rinkimų laikai yra skirtingi ir pirmas tą laiką pasieks serveris \textit{S4}.
 
 \begin{figure}[H]
 \centering
@@ -190,6 +191,15 @@ Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų
 
 Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai leidžia palengvinti įgyvendinimo kaštus, nes didžioji dalis širdies plakimo mechanizmo algoritmo yra paimama iš Erlang OTP bibliotekos. Mazgui netikėtai nustojus veikti, klaida bus aptikta iškarto, o mazgui lėtai atsakant ar ryšiui nutrūkus, širdies plakimo mechanizmas atitinka Raft specifikaciją ir išsaugo Raft savybes.
 
+\section{Ra gedimų aptikimo algoritmo formali specifikacija}
+
+Šioje dalyje yra pateikiama formali Ra gedimų aptikimo algoritmo specifikacija, parašyta TLA$^+$ kalba.
+
+apie TLA Plius
+
+- Timed out but then came back?
+
+
 \sectionnonum{Rezultatai ir išvados}
 
 Šiame darbe buvo išnagrinėtas Raft algoritmas ir jo įgyvendinimas -- Ra biblioteka. Detaliau buvo palyginti Raft darbe aprašyti mazgų negyvybingumo aptikimo algoritmai su Ra naudojamais Erlang mazgų stebėjimo infrastruktūra. Nustatyta, kad Raft pasiūlytas mechanizmas, ir Ra naudojamas Erlang gimtasis funkcionalumas, yra to paties širdies plakimo algoritmo įgyvendinimai ir esminių skirtumų tarp jų nėra. Todėl teigiama, kad Ra įgyvendinimas yra korektiškas ir išlaiko Raft savybes.
@@ -214,7 +224,13 @@ Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimto
 %vartojami specialūs paaiškinimo reikalaujantys terminai ir rečiau sutinkamos
 %santrumpos.
 
-% \appendix  % Priedai
+\appendix  % Priedai
+
+\includepdf[pages=1, pagecommand=\section{Raft algoritmo gedimo aptikimo specifikacija TLA$^+$ kalba}\label{sec:appendix_raft_tla_spec}]{spec/RaftHeartbeat.pdf}
+\includepdf[pages=2-]{spec/RaftHeartbeat.pdf}
+
+\includepdf[pages=1, pagecommand=\section{Ra bibliotekos gedimo aptikimo specifikacija TLA$^+$ kalba}\label{sec:appendix_ra_tla_spec}]{spec/RaHeartbeat.pdf}
+\includepdf[pages=2-]{spec/RaHeartbeat.pdf}
 
 % Prieduose gali būti pateikiama pagalbinė, ypač darbo autoriaus savarankiškai
 % parengta, medžiaga. Savarankiški priedai gali būti pateikiami ir
