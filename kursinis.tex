@@ -82,7 +82,7 @@ Raft algoritmas remiasi lyderio išrinkimu -- vienas iš mazgų tampa lyderiu, i
 
 Sistemos mazgai turi laikiną atmintį, kurioje saugo dažnai naudojamą informaciją, ir ilgalaikę atmintį. Ilgalaikė atmintis turi informacijos apie sistemos konfigūraciją, kuri yra reikalinga korektiškam Raft algoritmo veikimui -- mazgai išsaugo savo dabartinį terminą ir už ką jame balsavo. Taip pat ilgalaikėje atmintyje saugomi užfiksuoti įrašai~\cite{ongaro_consensus}.
 
-Raft specifikacija garantuoja kad Raft algoritmas tenkina sekančias savybes~\cite{ongaro_consensus}: 
+Raft specifikacija garantuoja, kad Raft algoritmas tenkina sekančias savybes~\cite{ongaro_consensus}: 
 
 \begin{enumerate}
 \item Lyderio išrinkimas: duotam lyderio terminui galiausiai bus išrinktas ne daugiau kaip vienas lyderis.
@@ -148,7 +148,7 @@ Net jei dalis mazgų nustojo veikti ar lėtai grąžina atsakymus, lyderis pakar
 
 \subsection{Raft mazgų tinklo trūkių neigiamų pasekmių sumažinimas}
 
-Pagal klasikinį Raft, nutikus mazgų tinklo trūkiui, tai yra kai dalis mazgų tampa nepasiekiama kitai daliai mazgų, įvyksta papildomas lyderio išrinkimas -- atsijungusi dalis mazgų nepasiekia buvusio lyderio ir, praėjus rinkimų laikui, pradeda naują terminą (padidina kadencijos numerį). Kaip pasekmė, susijungus šioms mazgų dalims atgal į vieną tinklą, didesnė dalis mazgų gauna užklausas iš mažesnės dalies mazgų, kuriuose nurodytas terminas yra didesnis. Tada didesnės dalies mazgų lyderis atsistatydina, ir prasideda nauji rinkimai~\cite{ongaro_consensus}. Per trūkio laiką nauji įrašai galėtų būti užfiksuoti tik didesnėje dalyje mazgų, nes mažesnėje nebūtų galima gauti daugumos patvirtinimo. Jeigu per trūkio laiką buvo užfiksuota naujų įrašų, tai reikštų kad lyderiu galėtų būti išrinktas tik vienas iš tos didesnės mazgų grupės narių. Vienas iš šitų mazgų yra trūkio pabaigoje esantis lyderis. Taigi, yra vykdomi papildomi rinkimai, nors galėtų būti paliktas esamas lyderis.
+Pagal klasikinį Raft, nutikus mazgų tinklo trūkiui, tai yra kai dalis mazgų tampa nepasiekiama kitai daliai mazgų, įvyksta papildomas lyderio išrinkimas -- atsijungusi dalis mazgų nepasiekia buvusio lyderio ir, praėjus rinkimų laikui, pradeda naują terminą (padidina kadencijos numerį). Kaip pasekmė, susijungus šioms mazgų dalims atgal į vieną tinklą, didesnė dalis mazgų gauna užklausas iš mažesnės dalies mazgų, kuriuose nurodytas terminas yra didesnis. Tada didesnės dalies mazgų lyderis atsistatydina, ir prasideda nauji rinkimai~\cite{ongaro_consensus}. Per trūkio laiką nauji įrašai galėtų būti užfiksuoti tik didesnėje dalyje mazgų, nes mažesnėje nebūtų galima gauti daugumos patvirtinimo. Jeigu per trūkio laiką buvo užfiksuota naujų įrašų, tai reikštų, kad lyderiu galėtų būti išrinktas tik vienas iš tos didesnės mazgų grupės narių. Vienas iš šitų mazgų yra trūkio pabaigoje esantis lyderis. Taigi, yra vykdomi papildomi rinkimai, nors galėtų būti paliktas esamas lyderis.
 
 Šioms klasterių apjungimo pasekmėms pašalinti Raft autoriai siūlo padaryti algoritmo praplėtimą: įvesti dar vieną mazgų būseną tarp "sekėjo" ir "kandidato" būsenų -- "pirminis balsavimas" (angl. \textit{pre-vote}). Šioje būsenoje kandidatas pradeda lyderio rinkimus tik sužinojęs, kad dauguma mazgų balsuotų už jį kaip lyderį. Mazgo terminas šioje būsenoje nėra padidinamas. Šis sprendimas išsprendžia trikdžius daliai mazgų prisijungiant atgal į didesnį mazgų klasterį, nes mažesnėje dalyje mazgų niekada nebus padidintas kadencijos numeris~\cite{ongaro_consensus}.
 
@@ -184,7 +184,7 @@ Ra nenaudoja žurnalo įrašų perdavimo užklausų mazgų gyvybingumui užtikri
 
 Ra nenaudoja Raft aprašyto gedimo aptikimo algoritmo. Ra naudoja gimtąjį Erlang mazgų stebėjimo infrastruktūrą stebėti ar mazgai nenustojo veikti ir kartu pasitelkia Aten\footnote{https://github.com/rabbitmq/aten} biblioteka mazgų susisiekimo klaidoms aptikti~\cite{rabbitmqra}. Aten yra adaptyvus kaupiamasis gedimų aptikimo algoritmas, kuris atsižvelgia į širdies plakimų istoriją ir pagal tai nusprendžia, ar yra didelė tikimybė nesulaukti sekančio gyvumo patvirtinimo. Tai yra naudinga siekiant sumažinti klaidingai teigiamų gedimo rezultatų skaičių didelio tinklo apkrovos metu~\cite{satzger2007_new_accrual_failure}.  
 
-Gimtieji Erlang monitoriai leidžia greitai aptikti mazgų neveikimą proceso lūžio atveju (angl. \textit{crash}). Stebėtojui yra išsiunčiama \texttt{'DOWN'} žinutė~\cite{ericsson_erlang_processes_2016}. Erlang monitoriai užtikrina greitą lyderio mazgo neveikimo aptikimą jo sekėjais ir taip iš dalies pakeičia Raft širdies plakimo mechanizmą~\cite{rabbitmqra}. Aten biblioteka leidžia aptikti tinklo paskirstymo problemas, kaip mazgų nepasiekiamumą per tinklą. Kai Aten įtaria kad vienas iš mazgų yra nepasiekiamas, yra išsiunčiama \texttt{nodedown} žinutė mazgo stebėtojui. Atitinkamai, jei mazgas ,,atsigauna'' ir atrodo vėl veikiantis, yra išsiunčiama \texttt{nodeup} žinutė~\cite{rabbitmq_aten_2020}. Kartu Erlang monitoriai ir Aten biblioteka, anot Ra autorių, užtikrina mazgų gyvumą ir pakeičia Raft aprašytą širdies plakimo mechanizmą~\cite{rabbitmqra}. 
+Gimtieji Erlang monitoriai leidžia greitai aptikti mazgų neveikimą proceso lūžio atveju (angl. \textit{crash}). Stebėtojui yra išsiunčiama \texttt{'DOWN'} žinutė~\cite{ericsson_erlang_processes_2016}. Erlang monitoriai užtikrina greitą lyderio mazgo neveikimo aptikimą jo sekėjais ir taip iš dalies pakeičia Raft širdies plakimo mechanizmą~\cite{rabbitmqra}. Aten biblioteka leidžia aptikti tinklo paskirstymo problemas, kaip mazgų nepasiekiamumą per tinklą. Kai Aten įtaria, kad vienas iš mazgų yra nepasiekiamas, yra išsiunčiama \texttt{nodedown} žinutė mazgo stebėtojui. Atitinkamai, jei mazgas ,,atsigauna'' ir atrodo vėl veikiantis, yra išsiunčiama \texttt{nodeup} žinutė~\cite{rabbitmq_aten_2020}. Kartu Erlang monitoriai ir Aten biblioteka, anot Ra autorių, užtikrina mazgų gyvumą ir pakeičia Raft aprašytą širdies plakimo mechanizmą~\cite{rabbitmqra}. 
 
 Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem} \footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
 Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką. Neprieinamumo tikrinimo laiką \texttt{ticktime} naudotojas nustato pagal savo poreikį konfigūracinio parametro pagalba~\cite{rabbitmqra}.
@@ -193,11 +193,27 @@ Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai
 
 \section{Ra gedimų aptikimo algoritmo formali specifikacija}
 
-Šioje dalyje yra pateikiama formali Ra gedimų aptikimo algoritmo specifikacija, parašyta TLA$^+$ kalba.
+Ra bibliotekos Raft algoritmo įgyvendinimo korektiškumo užtikrinimo sudėtingumui sumažinti, šio darbo metu buvo praplėsta Raft algoritmo formalios specifikacijos dalis susijusi su gedimų aptikimo algoritmu. Taip pat sukurta ir Ra bibliotekos gedimų aptikimo algoritmo formali specifikacija. Šioje dalyje yra pateikiamos šių dviejų formalių gedimų aptikimo algoritmo specifikacijų (toliau -- specifikacijų), parašytų TLA$^+$ kalba, aprašymai. Specifikacijų pradiniai kodai yra pateikiami kaip darbo priedai. Šių dviejų algoritmų vienodos elgsenos įrodymas nėra pateikiamas ir lieka būti įrodytas būsimuose darbuose. 
 
-apie TLA Plius
+Naudojama formalių specifikacijų rašymo kalba TLA$^+$ -- 
 
-- Timed out but then came back?
+Pagrindinis specifikacijų kūrimo tikslas yra formaliai aprašyti Ra mazgų gedimo aptikimo mechanizmą, kas leistų formaliai įrodyti Ra įgyvendinimo Raft specifikacijos atitikimą ir Raft savybių išlaikymą. Raft autoriai pateikė Raft formaliosios specifikacijos pradinį kodą, tačiau jame gedimų aptikimo algoritmas yra suabstrahuotas kaip vienas žingsnis -- sekėjo rinkimo laiko pasibaigimas ir perėjimas į sekančią būseną, pradiniam kode tai nurodo funkcija \texttt{Timeout}. Detalesniam Raft ir Ra gedimo aptikimo mechanizmų palyginimui šio darbo autoriai, remiantis Raft specifikacija, sukūrė detalesnę Raft gedimo aptikimo algoritmo specifikaciją, kurios pilnas pradinis kodas yra pateiktas priede~\ref{sec:appendix_raft_tla_spec}. Ra specifikacija yra sukurta su panašiu detalumo lygiu siekiant palengvinti šių dviejų specifikacijų palyginimą. Pilnas Ra specifikacijos pradinis kodas yra pateiktas priede~\ref{sec:appendix_ra_tla_spec}.
+
+Šių specifikacijų rašymo metu buvo laikomasi tokių pat prielaidų kaip Raft formalioje specifikacijoje:
+
+\begin{itemize}
+\item Sistema veikia asinchroniškai ir neturi tokios sąvokos kaip "laikas".
+\item Žinutės atkeliauja pas savo gavėją per laisvai pasirinktą skaičių žingsnių (perėjimų). Žinutės išsiuntimas įgalina žinutės gavimą, tačiau be jokio savalaikiškumo.
+\item Tinklas gali pakeisti žinučių tvarką, pamesti (pašalinti) žinutę.
+\end{itemize}
+
+Specifikacijų sritis yra dviejų mazgų -- lyderio ir sekėjo -- ryšio palaikymas ir sekėjo lyderio gedimų aptikimas. Šis lyderio--sekėjo ryšys yra baigiamas kai sekėjas nustato, kad lyderis nustojo veikti arba nėra pasiekiamas. Todėl papildomai darbo autoriai apribojo specifikacijų aprašytą sritį:
+
+\begin{itemize}
+\item Lyderiui nustojus veikti ir sekėjui tai nustačius, sekėjas pereiną į sekančią būseną ("pirminis balsavimas" arba "kandidatas") ir tolimesnis elgesys nėra aprašomas specifikacijose.
+\item Pagal Raft specifikaciją,  \texttt{AppendEntries} užklausa be žurnalo įrašų sekėjo būsenoje įtakoja tik \texttt{commitIndex} reikšmę. Todėl kitos perduodamos reikšmės nėra įtrauktos į specifikacijas. 
+\end{itemize}
+
 
 
 \sectionnonum{Rezultatai ir išvados}
@@ -227,10 +243,10 @@ Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimto
 \appendix  % Priedai
 
 \includepdf[pages=1, pagecommand=\section{Raft algoritmo gedimo aptikimo specifikacija TLA$^+$ kalba}\label{sec:appendix_raft_tla_spec}]{spec/RaftHeartbeat.pdf}
-\includepdf[pages=2-]{spec/RaftHeartbeat.pdf}
+\includepdf[pages=2-, pagecommand={}]{spec/RaftHeartbeat.pdf}
 
 \includepdf[pages=1, pagecommand=\section{Ra bibliotekos gedimo aptikimo specifikacija TLA$^+$ kalba}\label{sec:appendix_ra_tla_spec}]{spec/RaHeartbeat.pdf}
-\includepdf[pages=2-]{spec/RaHeartbeat.pdf}
+\includepdf[pages=2-, pagecommand={}]{spec/RaHeartbeat.pdf}
 
 % Prieduose gali būti pateikiama pagalbinė, ypač darbo autoriaus savarankiškai
 % parengta, medžiaga. Savarankiški priedai gali būti pateikiami ir
