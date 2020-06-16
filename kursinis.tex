@@ -15,6 +15,9 @@
 \usepackage{fontspec}
 \usepackage{todonotes}
 \usepackage{pdfpages}
+\usepackage{tlatex}
+\usepackage{multicol}
+\usepackage{changepage}   % for the adjustwidth environment
 %\newcommand{\TD}[1]{\todo[inline, color=red!40]{#1}}
 
 % Titulinio aprašas
@@ -31,6 +34,31 @@
 \date{Vilnius – \the\year}
 
 % Nustatymai
+\definecolor{back}{RGB}{245, 245, 245}    % nauja spalva (pilka, tinkanti kodo fonui)
+\lstdefinestyle{fancycode}{                        
+% aplinkos lstlisting nustatymai graziam kodo iterpimui:
+% KODE REIKES NURODYTI \begin{lstlisting}[style=fancycode]
+    backgroundcolor = \color{back},           % colour for the background
+    commentstyle = \it\color{magenta},        % style of comments
+    keywordstyle = \color{blue},              % style of keywords
+    numberstyle = \tiny\color{black},         % style used for line-numbers
+    stringstyle = \color{ForestGreen},        % style of strings
+    basicstyle = \linespread{1}\footnotesize, % font size/family/etc. for source 
+    columns = fullflexible,                   % for optimal spacing between characters
+    %captionpos = b,                          % position of caption (t/b)
+    numbers = left,                           % position of line numbers (left/right/none)
+    numbersep = 12pt,                         % distance of line-numbers from the code
+    frame = single,                             % showing frame outside code 
+%                                             %(none/leftline/topline/bottomline/lines/single/shadowbox/trbl)
+    escapeinside = {(*@}{@*)},                % specify characters to escape from source code to LATEX
+    rulecolor = \color{gray},                 % Specify the colour of the frame-box
+    frameround = fttt,                        % from top-right (t - round)
+    %framerule = 2mm,                          % margin of frame
+    inputencoding=utf8,
+    aboveskip = 20pt,                         % space above 
+    belowskip = 15pt                          % space below
+}
+
 \setmainfont
 [Path = ./palem/,
  Extension = .ttf,
@@ -60,25 +88,36 @@ Formaliai, paskirstyta sistema yra skaičiavimų elementų (toliau - mazgų) rin
 
 Šio darbo uždaviniai yra:
 \begin{itemize}
-    \item Išnagrinėti Raft algoritmą ir biblioteką Ra.
-    \item Pateikti esamos literatūros apie Raft algoritmą ir Ra įgyvendinimo apžvalgą.
-    \item Išanalizuoti Ra padarytus praplėtimus ir jų įtaką Raft algoritmui.
-    \item Pateikti formalią specifikaciją Ra mazgų neveikimo aptikimui.
+\item Išnagrinėti Raft algoritmą ir biblioteką Ra.
+\item Pateikti esamos literatūros apie Raft algoritmą ir Ra įgyvendinimo apžvalgą.
+\item Išanalizuoti Ra padarytus praplėtimus ir jų įtaką Raft algoritmui.
+\item Pateikti formalią specifikaciją Ra mazgų neveikimo arba nepasiekiamumo (toliau -- gedimo) aptikimui.
 \end{itemize}
 
-Šiame darbe parodyta, kad Raft algoritmo bibliotekoje Ra naudojami gimtieji Erlang mazgų neveikimo aptikimo metodai atitinka Raft algoritmo aprašytus širdies plakimo (angl. \textit{heartbeat}) procedūras. Ra suvaldo atvejus, kai mazgas netikėtai nustoja veikti (angl. \textit{crash}), o jei mazgas yra nepasiekiamas ar lėtas, negyvybingumo aptikimo algoritmas atitinka Raft aprašytus scenarijus.
+Šiame darbe yra pristatomos Raft algoritmo ir Ra bibliotekos apžvalgos, pabrėžiant Ra įgyvendintų praplėtimų įtaką. Taip pat yra pateikiamos ir palyginamos Raft ir Ra gedimų aptikimo algoritmų formalios specifikacijos ir pateikiamos rekomendacijos ateities darbams. Šiame darbe nėra formaliai įrodoma, kad Ra gedimų aptikimo mechanizmo praplėtimas išsaugo visas pagrindines Raft algoritmo savybes.
 
-Šis darbas yra paskirstytas į dvi dalis. Pirmoje dalyje yra apžvelgiamas Raft algoritmas ir detaliau išnagrinėjami kelių jo dalių, susijusių su mazgų neveikimo aptikimu, veikimo principai. Antroje dalyje yra aprašomos Raft algoritmo bibliotekoje Ra naudojamos kalbos Erlang ypatybės ir išnagrinėjami Ra padaryti praplėtimai, yra detaliau išnagrinėjami Ra naudojami mazgų neveikimo aptikimo metodai ir jie yra palyginami su Raft pasiūlytu sprendimu.
+Specifikacijoms naudojama formalių specifikacijų rašymo kalba TLA$^+$ kuri leidžia formaliai sumodeliuoti algoritmų specifikacijas naudojant matematikos ir logikos taisykles~\cite{lamport2002specifying}. Industrijoje TLA$^+$ dažnai naudojama apibrėžti paskirstytas sistemas~\cite{amazon_use_formal_methods}. Dėl to, kad TLA$^+$ kalba yra formali, yra galimas modelio tikrinimas, leidžiantis patikrinti tokias aprašytos sistemos charakteristikas kaip gyvybingumas ir saugumas~\cite{lamport2002specifying}.
+
+Šis darbas yra paskirstytas į tris dalis. Pirmoje dalyje yra apžvelgiamas Raft algoritmas ir detaliau išnagrinėjami kelių jo dalių, susijusių su mazgų neveikimo aptikimu, veikimo principai. Antroje dalyje yra aprašomos Raft algoritmo bibliotekoje Ra naudojamos kalbos Erlang ypatybės ir išnagrinėjami Ra padaryti praplėtimai, yra detaliau išnagrinėjami Ra naudojami mazgų neveikimo aptikimo metodai. Trečioje dalyje yra pateikiamos Raft ir Ra gedimo aptikimo algoritmų formalių specifikacijų apžvalgos.
 
 \section{Raft algoritmo apžvalga}
 
-Raft yra algoritmas, naudojamas konsensusui pasiekti paskirstytoje sistemoje. Bazinio Raft algoritmo  korektiškumas yra įrodytas formalios TLA$^+$ specifikacijos pagalba~\cite{ongaro_consensus} ir naudojimu industrijoje -- Raft naudojamas etcd\footnote{https://etcd.io/}, Consul\footnote{https://www.consul.io/docs/internals/consensus.html} ir CockroachDB\footnote{https://www.cockroachlabs.com/docs/stable/architecture/replication-layer.html} projektuose. 
+Raft yra algoritmas, naudojamas konsensusui pasiekti paskirstytoje sistemoje. Bazinio Raft algoritmo korektiškumas yra įrodytas formalios TLA$^+$ specifikacijos pagalba~\cite{ongaro_consensus} ir naudojimu industrijoje -- Raft naudojamas etcd\footnote{https://etcd.io/}, Consul\footnote{https://www.consul.io/docs/internals/consensus.html} ir CockroachDB\footnote{https://www.cockroachlabs.com/docs/stable/architecture/replication-layer.html} projektuose. 
 
 Raft buvo sukurtas kaip lengviau suprantama alternatyva tuo metu labiausiai paplitusiam Paxos\footnote{http://lamport.azurewebsites.net/pubs/paxos-simple.pdf} konsensuso algoritmui~\cite{ongaro_consensus, diego_designing_2016}. Raft autoriai, atlikus vartotojų tyrimą, parodė, kad Raft algoritmas yra lengviau suprantamas negu Paxos, iš ko seka mažesni įgyvendinimo kaštai, mažesnis galimų klaidų skaičius ir paprastesnis bazinio algoritmo praplėtimas~\cite{ongaro_consensus}. Raft leidžia užtikrinti sistemos gyvybingumą ir saugumą kol veikia daugiau negu pusė paskirstytos sistemos mazgų. 
 
 Raft algoritmo kontekste sistema laikoma būsenų mašina, kuri priima iš klientų užklausas su komandų įrašais. Kiekvienas įrašas yra norimos sistemai įvykdyti komandos aprašymas. Įvykdant komandą, sistema pakeičia savo vidinę būseną ir grąžina klientui rezultatą -- savo atnaujintą būseną ar jos dalį. Atitinkamai, paskirstyta sistema susideda iš mazgų, kurie irgi yra būsenų mašinos, turinčios savo įrašų žurnalus ir vidines būsenas. Toks paskirstytos sistemos išdėstymas leidžia pasiekti aukštą gedimų toleravimo ir greičio lygį~\cite{ongaro_consensus, steen_distributed_2017}.
 
-Raft algoritmas remiasi lyderio išrinkimu -- vienas iš mazgų tampa lyderiu, ir yra laikoma, kad lyderio žurnalas yra tiesos šaltinis. Visos klientų užklausos yra siunčiamos lyderiui, kuris persiunčia įrašus kitiems mazgams (sekėjams). Kai dauguma mazgų turi informaciją apie naują įrašą, mazgai užfiksuoja įrašą savo žurnale ir įvykdo įraše nurodytą komandą. Jei nustoja veikti sekėjas, sistema tęsia darbą, kol yra veikiančių mazgų dauguma. Nustojus veikti lyderiui, nesulaukę lyderio gyvumo patvirtinimo, kiekvienas mazgas po atsitiktinio dydžio laiko, pasirinkto iš nustatyto intervalo,  pradeda rinkimus. Rinkimai prasideda kai vienas iš mazgų padidina savo termino (kadencijos) reikšmę ir išsiunčia kitiems mazgams prašymo balsuoti užklausas. Išsirinkus naują lyderį sistemą gali tęsti darbą~\cite{ongaro_consensus}. 
+Raft algoritmas remiasi lyderio išrinkimu -- vienas iš mazgų tampa lyderiu, ir yra laikoma, kad lyderio žurnalas yra tiesos šaltinis. Visos klientų užklausos yra siunčiamos lyderiui, kuris persiunčia įrašus kitiems mazgams (sekėjams). Kai dauguma mazgų turi informaciją apie naują įrašą, mazgai užfiksuoja įrašą savo žurnale ir įvykdo įraše nurodytą komandą. Jei nustoja veikti sekėjas, sistema tęsia darbą, kol yra veikiančių mazgų dauguma. Nustojus veikti lyderiui, nesulaukę lyderio gyvumo patvirtinimo, kiekvienas mazgas po atsitiktinio dydžio laiko, pasirinkto iš nustatyto intervalo, pradeda rinkimus. Rinkimai prasideda kai vienas iš mazgų padidina savo termino (kadencijos) reikšmę ir išsiunčia kitiems mazgams prašymo balsuoti užklausas. Išsirinkus naują lyderį sistemą gali tęsti darbą~\cite{ongaro_consensus}. 
+
+Formuojant Raft formalią specifikaciją, buvo padarytos sekančios prielaidos apie sistemą ir sistemos tinklą~\cite{ongaro_consensus}:
+\begin{itemize}
+\item Sistema yra asinchroninė ir neturi tokios sąvokos kaip ,,laikas''.
+\item Žinutės gali turėti neapibrėžtą skaičių perėjimo kol pasieks savo gavėją. Išsiunčiant žinutę yra įgalinamas žinutės gavimas, tačiau nėra garantuojamas joks gavimo savalaikiškumas.
+\item Mazgai gali nustoti veikti ir save perkrauti atsistatydami dalį savo būsenos iš ilgalaikės atminties.
+\item Tinklas gali pakeisti žinučių tvarką ir pamesti (pašalinti) žinutę. 
+\end{itemize}
+
 
 Sistemos mazgai turi laikiną atmintį, kurioje saugo dažnai naudojamą informaciją, ir ilgalaikę atmintį. Ilgalaikė atmintis turi informacijos apie sistemos konfigūraciją, kuri yra reikalinga korektiškam Raft algoritmo veikimui -- mazgai išsaugo savo dabartinį terminą ir už ką jame balsavo. Taip pat ilgalaikėje atmintyje saugomi užfiksuoti įrašai~\cite{ongaro_consensus}.
 
@@ -166,7 +205,7 @@ Erlang yra funkcinė programavimo kalba leidžianti kurti paskirstytas, atsparia
 
 Paskirstytas programavimas Erlang yra pagrįstas aktorių modeliu~\cite{farrugia_towards_nodate, agha_actors_1985}. Pagrindinis Erlang vykdymo vienetas yra mazgas (angl. \textit{node}) -- tai yra Erlang virtualios mašinos vienetas (paskirstytos sistemos vienetus taip pat vadinsime mazgais). Erlang mazgas gali turėti tūkstančius jame vykdomų procesų (angl. \textit{process}), o procesai komunikuoja vienas su kitu žinučių pagalba (angl. \textit{message}). Jeigu vienas iš procesų nustos veikti, tai neįtakoja kitų procesų ir jie tęsia savo darbą. Nenumatytoms klaidoms suvaldyti procesai gali būti prižiūrimi prižiūrėtojo (angl. \textit{supervisor}), kuris gautų pranešimą nenumatytai klaidai įvykus ir prižiūrimam procesui nustojus veikti~\cite{erlang_distributed}.
 
-Erlang mazgai gali būti paskirstyti per daugiau negu vieną mašiną ir bendrauja vienas su kitu tranzityvinių ryšiu pagalba. Kai vienas iš mazg sudaro ryšį su kitu mazgu (pavyzdžiui, panaudojus \texttt{net\_kernel:connect/1}), mazgai apsikeičia žinomais mazgais ir taip sudaro vieną mazgų tinklą. Erlang mazgų sistema yra labai lanksti ir leidžia vienam iš mazgų deleguoti kitam mazgui laisvai pasirinktą funkciją vykdymui (angl. \textit{arbitrary code execution}). \texttt{net\_kernel} modulio pagalba vienas iš mazgų gali prenumeruoti mazgų statusų pakeitimų žinučių gavimą. Tokiu atveju, pasikeitus žinomo mazgo statusui, prenumeravęs mazgas gaus pranešimą su nauju mazgo statusu~\cite{erlang_distributed, hebert_learn_2013}. Ra bibliotekos atveju, didžiausią sistemos prieinamumą suteiks nelyginio skaičiaus mašinų su vienu Erlang mazgu vykdančių Ra kodą kiekvienoje mašinoje paskirstytos sistemos architektūra.
+Erlang mazgai gali būti paskirstyti per daugiau negu vieną mašiną ir bendrauja vienas su kitu ryšiu pagalba sudarant pilną tinklą (angl. \textit{full mesh}). Kai vienas iš mazg sudaro ryšį su kitu mazgu (pavyzdžiui, panaudojus \texttt{net\_kernel:connect/1}), mazgai apsikeičia žinomais mazgais ir taip sudaro vieną mazgų tinklą. Erlang mazgų sistema yra labai lanksti ir leidžia vienam iš mazgų deleguoti kitam mazgui laisvai pasirinktą funkciją vykdymui (angl. \textit{arbitrary code execution}). \texttt{net\_kernel} modulio pagalba vienas iš mazgų gali prenumeruoti mazgų statusų pakeitimų žinučių gavimą. Tokiu atveju, pasikeitus žinomo mazgo statusui, prenumeravęs mazgas gaus pranešimą su nauju mazgo statusu~\cite{erlang_distributed, hebert_learn_2013}. Ra bibliotekos atveju, didžiausią sistemos prieinamumą suteiks nelyginio skaičiaus mašinų su vienu Erlang mazgu vykdančių Ra kodą kiekvienoje mašinoje paskirstytos sistemos architektūra.
 
 Erlang mazgai palaiko ryšį tarp vienas kito "širdies plakimo" (angl. \emph{heartbeat}) mechanizmo pagalba. \texttt{ticktime} yra širdies plakimo užklausos siuntimo intervalas padaugintas iš keturių ir žymi laiką, po kurio mazgas bus laikomas nepasiekiamu. Kai vienas iš mazgų negauna iš kito mazgo jo gyvavimo patvirtinančio pranešimo per \texttt{ticktime} sekundžių, tas stebimas mazgas laikomas nepasiekiamu. Širdies plakimo užklausos neišsiuntimo priežastimi gali būti kaip ir techninės įrangos gedimai ir ryšio sutrikimai, taip ir mazgo siuntimo kanalo didelis užimtumas -- Erlang naudoja tą patį TCP (angl. \emph{Transmission Control Protocol}) kanalą naudotojo aprašytoms ir širdies plakimo žinutėms siųsti, todėl didelių žinučių siuntimas gali priversti širdies plakimo žinutes ilgai laukti savo eilės~\cite{hebert_learn_2013}.
 
@@ -178,49 +217,139 @@ Dėl Erlang kalbos ypatybių, konkretaus naudojimo scenarijaus ir siekio optimiz
 
 Ra nenaudoja žurnalo įrašų perdavimo užklausų mazgų gyvybingumui užtikrinti kai visų mazgų žurnalai yra sinchronizuoti. Kai vienas iš mazgų yra pasenęs, tai yra, to mazgo paskutinis sinchronizuotas įrašas yra ankstesnis negu paskutinis įrašas, siųstas lyderio tam mazgui, \texttt{AppendEntries} užklausa yra daroma, bet rečiau, negu pasiūlyta Raft specifikacijoje. Jei skirtumas tarp paskutinio sinchronizuoto įrašo ir paskutinio siųsto įrašo yra labai didelis, mazgo apkrovai sumažinti užklausos nėra siunčiamos~\cite{rabbitmqra}. Žurnalų įrašų perdavimas yra vykdomas asinchroniškai, o atsakymai yra grupuojami~\cite{rabbitmqra}.
 
-Šiuo praplėtimo atveju Ra autoriai išnaudojo Erlang kalbos galimybes, nes Erlang leidžia palaikyti ryšį tarp mazgų išreikštinai nesiunčiant papildomų užklausų. Nesiunčiant papildomų užklausų taip pat yra atlaisvinamas ryšio kanalas, leidžiant pačiam Erlang efektyviai palaikyti ryšius ir daryti širdies plakimo užklausas. Taigi, Ra funkcionalumas atitinka Raft specifikaciją. Dėl šitos priežasties galima teigti, kad Ra autoriai laikėsi Raft specifikacijos ir nepažeidė Raft nustatytų algoritmo savybių praplečiant žurnalo perdavimo algoritmą.      
+Šiuo praplėtimo atveju Ra autoriai išnaudojo Erlang kalbos galimybes, nes Erlang leidžia palaikyti ryšį tarp mazgų išreikštinai nesiunčiant papildomų užklausų. Nesiunčiant papildomų užklausų taip pat yra atlaisvinamas ryšio kanalas, leidžiant pačiam Erlang efektyviai palaikyti ryšius ir daryti širdies plakimo užklausas. Taigi, Ra funkcionalumas atitinka Raft specifikaciją. Dėl šitos priežasties galima teigti, kad Ra autoriai laikėsi Raft specifikacijos ir nepažeidė Raft nustatytų algoritmo savybių praplečiant žurnalo perdavimo algoritmą.
 
 \subsubsection{Ra gedimų aptikimo algoritmas}
 
-Ra nenaudoja Raft aprašyto gedimo aptikimo algoritmo. Ra naudoja gimtąjį Erlang mazgų stebėjimo infrastruktūrą stebėti ar mazgai nenustojo veikti ir kartu pasitelkia Aten\footnote{https://github.com/rabbitmq/aten} biblioteka mazgų susisiekimo klaidoms aptikti~\cite{rabbitmqra}. Aten yra adaptyvus kaupiamasis gedimų aptikimo algoritmas, kuris atsižvelgia į širdies plakimų istoriją ir pagal tai nusprendžia, ar yra didelė tikimybė nesulaukti sekančio gyvumo patvirtinimo. Tai yra naudinga siekiant sumažinti klaidingai teigiamų gedimo rezultatų skaičių didelio tinklo apkrovos metu~\cite{satzger2007_new_accrual_failure}.  
+Ra nenaudoja Raft aprašyto gedimo aptikimo algoritmo. Ra naudoja gimtąjį Erlang mazgų stebėjimo infrastruktūrą stebėti ar mazgai nenustojo veikti ir kartu pasitelkia Aten\footnote{https://github.com/rabbitmq/aten} biblioteka mazgų susisiekimo klaidoms aptikti~\cite{rabbitmqra}. Aten yra adaptyvus kaupiamasis gedimų aptikimo algoritmas (angl. \textit{accrual failure detection algorithm}), kuris atsižvelgia į širdies plakimų istoriją ir pagal tai nusprendžia, ar yra didelė tikimybė nesulaukti sekančio gyvumo patvirtinimo. Tai yra naudinga siekiant sumažinti klaidingai teigiamų gedimo rezultatų skaičių didelio tinklo apkrovos metu~\cite{satzger2007_new_accrual_failure}.  
 
 Gimtieji Erlang monitoriai leidžia greitai aptikti mazgų neveikimą proceso lūžio atveju (angl. \textit{crash}). Stebėtojui yra išsiunčiama \texttt{'DOWN'} žinutė~\cite{ericsson_erlang_processes_2016}. Erlang monitoriai užtikrina greitą lyderio mazgo neveikimo aptikimą jo sekėjais ir taip iš dalies pakeičia Raft širdies plakimo mechanizmą~\cite{rabbitmqra}. Aten biblioteka leidžia aptikti tinklo paskirstymo problemas, kaip mazgų nepasiekiamumą per tinklą. Kai Aten įtaria, kad vienas iš mazgų yra nepasiekiamas, yra išsiunčiama \texttt{nodedown} žinutė mazgo stebėtojui. Atitinkamai, jei mazgas ,,atsigauna'' ir atrodo vėl veikiantis, yra išsiunčiama \texttt{nodeup} žinutė~\cite{rabbitmq_aten_2020}. Kartu Erlang monitoriai ir Aten biblioteka, anot Ra autorių, užtikrina mazgų gyvumą ir pakeičia Raft aprašytą širdies plakimo mechanizmą~\cite{rabbitmqra}. 
 
 Ra bibliotekoje visi mazgai kurie naudoja Raft algoritmą yra įgyvendinti kaip būsenų mašinos Erlang modulio \texttt{gen\_statem} \footnote{http://erlang.org/doc/man/gen\_statem.html} pagalba. 
-Pirmiausia būsenų mašina  prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką. Neprieinamumo tikrinimo laiką \texttt{ticktime} naudotojas nustato pagal savo poreikį konfigūracinio parametro pagalba~\cite{rabbitmqra}.
+Pirmiausia būsenų mašina prenumeruoja gauti pranešimus apie mazgų statusų pokyčius su \texttt{net\_kernel:monitor\_nodes/1}\footnote{http://erlang.org/doc/man/net\_kernel.html\#monitor\_nodes-1}. Kai vienas iš mazgų tampa neprieinamas, mazgas gauna \texttt{'DOWN'} pranešimą ir įvykdo atitinkamą Raft algoritmo logiką. Neprieinamumo tikrinimo laiką \texttt{ticktime} naudotojas nustato pagal savo poreikį konfigūracinio parametro pagalba~\cite{rabbitmqra}.
 
-Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai leidžia palengvinti įgyvendinimo kaštus, nes didžioji dalis širdies plakimo mechanizmo algoritmo yra paimama iš Erlang OTP bibliotekos. Mazgui netikėtai nustojus veikti, klaida bus aptikta iškarto, o mazgui lėtai atsakant ar ryšiui nutrūkus, širdies plakimo mechanizmas atitinka Raft specifikaciją ir išsaugo Raft savybes.
+Taigi, Ra naudoja Erlang monitorius kiekvieno iš mazgų būsenoms stebėti. Tai leidžia palengvinti įgyvendinimo kaštus, nes didžioji dalis širdies plakimo mechanizmo algoritmo yra paimama iš Erlang OTP bibliotekos. Mazgui netikėtai nustojus veikti, klaida bus aptikta iškarto ir stebėtojui bus išsiųsta \texttt{'DOWN'} žinutė, o mazgui lėtai atsakant ar ryšiui nutrūkus, nepasiekiamumą padės nustatyti širdies plakimo mechanizmas paremtas adaptyviu kaupiamuoju gedimų aptikimo algoritmu.
 
 \section{Ra gedimų aptikimo algoritmo formali specifikacija}
 
 Ra bibliotekos Raft algoritmo įgyvendinimo korektiškumo užtikrinimo sudėtingumui sumažinti, šio darbo metu buvo praplėsta Raft algoritmo formalios specifikacijos dalis susijusi su gedimų aptikimo algoritmu. Taip pat sukurta ir Ra bibliotekos gedimų aptikimo algoritmo formali specifikacija. Šioje dalyje yra pateikiamos šių dviejų formalių gedimų aptikimo algoritmo specifikacijų (toliau -- specifikacijų), parašytų TLA$^+$ kalba, aprašymai. Specifikacijų pradiniai kodai yra pateikiami kaip darbo priedai. Šių dviejų algoritmų vienodos elgsenos įrodymas nėra pateikiamas ir lieka būti įrodytas būsimuose darbuose. 
 
-Naudojama formalių specifikacijų rašymo kalba TLA$^+$ -- 
-
-Pagrindinis specifikacijų kūrimo tikslas yra formaliai aprašyti Ra mazgų gedimo aptikimo mechanizmą, kas leistų formaliai įrodyti Ra įgyvendinimo Raft specifikacijos atitikimą ir Raft savybių išlaikymą. Raft autoriai pateikė Raft formaliosios specifikacijos pradinį kodą, tačiau jame gedimų aptikimo algoritmas yra suabstrahuotas kaip vienas žingsnis -- sekėjo rinkimo laiko pasibaigimas ir perėjimas į sekančią būseną, pradiniam kode tai nurodo funkcija \texttt{Timeout}. Detalesniam Raft ir Ra gedimo aptikimo mechanizmų palyginimui šio darbo autoriai, remiantis Raft specifikacija, sukūrė detalesnę Raft gedimo aptikimo algoritmo specifikaciją, kurios pilnas pradinis kodas yra pateiktas priede~\ref{sec:appendix_raft_tla_spec}. Ra specifikacija yra sukurta su panašiu detalumo lygiu siekiant palengvinti šių dviejų specifikacijų palyginimą. Pilnas Ra specifikacijos pradinis kodas yra pateiktas priede~\ref{sec:appendix_ra_tla_spec}.
+Pagrindinis Raft ir Ra formalių specifikacijų kūrimo tikslas yra formaliai aprašyti Ra mazgų gedimo aptikimo mechanizmą, kas vėliau leistų įrodyti Ra įgyvendinimo Raft specifikacijos atitikimą ir Raft savybių išlaikymą. Raft autoriai pateikė Raft formaliosios specifikacijos pradinį kodą, tačiau jame gedimų aptikimo algoritmas yra suabstrahuotas kaip vienas žingsnis -- sekėjo rinkimo laiko pasibaigimas ir perėjimas į sekančią būseną, pradiniam kode tai nurodo funkcija \texttt{Timeout}~\cite{ongaro_consensus}. Detalesniam Raft ir Ra gedimo aptikimo mechanizmų palyginimui šio darbo autoriai, remiantis Raft specifikacija, sukūrė detalesnę Raft gedimo aptikimo algoritmo specifikaciją, kurios pilnas pradinis kodas yra pateiktas priede~\ref{sec:appendix_raft_tla_spec}. Ra specifikacija yra sukurta panašiu detalumo lygiu siekiant palengvinti šių dviejų specifikacijų palyginimą. Pilnas Ra specifikacijos pradinis kodas yra pateiktas priede~\ref{sec:appendix_ra_tla_spec}.
 
 Šių specifikacijų rašymo metu buvo laikomasi tokių pat prielaidų kaip Raft formalioje specifikacijoje:
 
 \begin{itemize}
-\item Sistema veikia asinchroniškai ir neturi tokios sąvokos kaip "laikas".
+\item Sistema veikia asinchroniškai ir neturi tokios sąvokos kaip,,laikas".
 \item Žinutės atkeliauja pas savo gavėją per laisvai pasirinktą skaičių žingsnių (perėjimų). Žinutės išsiuntimas įgalina žinutės gavimą, tačiau be jokio savalaikiškumo.
 \item Tinklas gali pakeisti žinučių tvarką, pamesti (pašalinti) žinutę.
 \end{itemize}
 
-Specifikacijų sritis yra dviejų mazgų -- lyderio ir sekėjo -- ryšio palaikymas ir sekėjo lyderio gedimų aptikimas. Šis lyderio--sekėjo ryšys yra baigiamas kai sekėjas nustato, kad lyderis nustojo veikti arba nėra pasiekiamas. Todėl papildomai darbo autoriai apribojo specifikacijų aprašytą sritį:
+Pagal Raft, pasikeitus lyderiui, naujojo lyderio terminas bus didesnis, kas privers sekėją padidinti ir savo vidinį terminą, pagal kurį galima ignoruoti senesnių lyderių pavėlavusias užklausas (nes juose nurodytas terminas bus senesnis). Tai leidžia supaprastinti specifikaciją iki vieno lyderio--sekėjo ryšio tyrimo. Specifikacijų sritis ir yra dviejų mazgų -- lyderio ir sekėjo -- ryšio palaikymas ir sekėjo lyderio gedimų aptikimas. Šis lyderio--sekėjo ryšys yra nepalaikomas kai sekėjas nustato, kad lyderis nustojo veikti arba nėra pasiekiamas. Iš viso to seka, kad papildomai darbo autoriai apriboja specifikacijų aprašytą sritį:
 
 \begin{itemize}
+\item Modeliuojamas tik vienas lyderio--sekėjo ryšys.
 \item Lyderiui nustojus veikti ir sekėjui tai nustačius, sekėjas pereiną į sekančią būseną ("pirminis balsavimas" arba "kandidatas") ir tolimesnis elgesys nėra aprašomas specifikacijose.
-\item Pagal Raft specifikaciją,  \texttt{AppendEntries} užklausa be žurnalo įrašų sekėjo būsenoje įtakoja tik \texttt{commitIndex} reikšmę. Todėl kitos perduodamos reikšmės nėra įtrauktos į specifikacijas. 
+\item Pagal Raft specifikaciją, \texttt{AppendEntries} užklausa be žurnalo įrašų sekėjo būsenoje įtakoja tik \texttt{commitIndex} reikšmę\cite{ongaro_consensus}. Todėl kitos perduodamos reikšmės nėra įtrauktos į specifikacijas. 
 \end{itemize}
 
+Formali Raft gedimo aptikimo mechanizmo specifikacija, kuri yra pateikta priede \ref{sec:appendix_raft_tla_spec}, aprašo lyderio ir vieno iš jo sekėjų ryšį, kai sekėjas gauna iš lyderio \texttt{AppendEntries} užklausas. Specifikacija apibrėžia visas galimas šio ryšio būsenas. Yra apibrėžiama pradinė būsena (\texttt{Init}), kurioje lyderis yra veikiantis bet dar neišsiuntė ne vienos užklausos, ir apibrėžiami visi galimi perėjimai iš vienos būsenos į kitą (\texttt{Next}). Tokių perėjimų yra keletas: lyderis išsiunčia žinutę; lyderis padidina savo paskutinio fiksuoto įrašo indeksą; tinklas pameta (ištrina) žinutę; sekėjas gauna žinutę ir atnaujina savo \texttt{commitIndex} reikšmę; lyderis nustoja veikti, po ko negalės atlikti jokių veiksmų; sekėjas nustato kad lyderis nepasiekiamas. 
 
+\begin{adjustwidth}{2cm}{}
+
+\begin{tla}
+Next == \/ SendMessage
+        \/ IncrementIndex
+        \/ DropMessage
+        \/ ReceiveMessage
+        \/ CrashLeader
+        \/ Timeout
+\end{tla}
+\begin{tlatex}
+\@pvspace{8.0pt}%
+\@x{ Next \.{\defeq} \.{\lor} SendMessage}%
+\@x{ \.{\lor} IncrementIndex}%
+\@x{ \.{\lor} DropMessage}%
+\@x{ \.{\lor} ReceiveMessage}%
+\@x{ \.{\lor} CrashLeader}%
+\@x{ \.{\lor} Timeout}%
+\@pvspace{8.0pt}%
+\end{tlatex}
+
+\end{adjustwidth}
+
+
+Prie kiekvieno perėjimo aprašytos sąlygos, kurias tenkinant šis perėjimas gali įvykti. Pavyzdžiui, lyderis gali siųsti užklausas tik jei jis yra veikiantis.
+
+
+\begin{adjustwidth}{2cm}{}
+
+\begin{tla}
+SendMessage == 
+        /\ leaderState = "ALIVE"
+        /\ messages' = Append(messages, leaderIndex)
+        /\ UNCHANGED <<leaderState, nodeIndexes, isTimeout>>
+\end{tla}
+\begin{tlatex}
+\@pvspace{8.0pt}%
+\@x{ SendMessage \.{\defeq}}%
+\@x{\@s{32.8} \.{\land} leaderState \.{=}\@w{ALIVE}}%
+ \@x{\@s{32.8} \.{\land} messages \.{'} \.{=} Append ( messages ,\,
+ leaderIndex )}%
+ \@x{\@s{32.8} \.{\land} {\UNCHANGED} {\langle} leaderState ,\, nodeIndexes
+ ,\, isTimeout {\rangle}}%
+\@pvspace{8.0pt}%
+\end{tlatex}
+
+\end{adjustwidth}
+
+
+Formali Ra bibliotekos gedimo aptikimo mechanizmo specifikacija yra pateikta priede \ref{sec:appendix_ra_tla_spec} ir aprašo tą patį lyderio--sekėjo ryšį. Ra atveju širdies plakimo žinutės neneša papildomos informacijos kaip \texttt{commitIndex}, o nustojus veikti lyderiui yra išsiunčiama \texttt{nodedown} žinutė, kurią gavus sekėjas gali nelaukti kol pasibaigs rinkimų laikas. Taigi, galimi perėjimai iš vienos būsenos į kitą šiuo atveju yra: lyderis išsiunčia širdies plakimo žinutę; sekėjas gauna širdies plakimo žinutę; tinklas pameta (ištrina) širdies plakimo žinutę; lyderis užlūžta ir nustoja veikti, yra išsiunčiama \texttt{nodedown} žinutė; sekėjas gauna \texttt{nodedown} žinutę ir iš karto pasižymi, kad lyderis yra nepasiekiamas; tinklas pameta (ištrina) \texttt{nodedown} žinutę; sekėjas nustato kad lyderis nepasiekiamas. Analogiškai su Raft specifikacija, prie kiekvieno perėjimo parašytos jam reikalingos sąlygos.
+
+\begin{adjustwidth}{2cm}{}
+
+\begin{tla}
+Next == \/ DropHeartbeat
+        \/ SendHeartbeat
+        \/ ReceiveHeartbeat
+        \/ DropNodedown
+        \/ ReceiveNodedown
+        \/ CrashLeader
+        \/ Timeout
+\end{tla}
+\begin{tlatex}
+\@pvspace{8.0pt}%
+\@x{ Next \.{\defeq} \.{\lor} DropHeartbeat}%
+\@x{ \.{\lor} SendHeartbeat}%
+\@x{ \.{\lor} ReceiveHeartbeat}%
+\@x{ \.{\lor} DropNodedown}%
+\@x{ \.{\lor} ReceiveNodedown}%
+\@x{ \.{\lor} CrashLeader}%
+\@x{ \.{\lor} Timeout}%
+\@pvspace{8.0pt}%
+\end{tlatex}
+
+
+\end{adjustwidth}
+
+Palyginus specifikacijas, galima teigti, kad, išskyrus \texttt{commitIndex} perdavimą sekėjui, Ra algoritmas atlieka tuos pačius veiksmus kaip Raft algoritmas, bet papildomai turi \texttt{nodedown} žinučių perdavimo mechanizmą. Šio darbo autorių nuomone, tai parodo, kad Ra įgyvendinimas atitinka Raft specifikaciją, tačiau formaliam įrodymui reikia ištirti \texttt{commitIndex} nebuvimo širdies plakimo žinutėse pasekmes ir formaliai įrodyti dviejų algoritmų ekvivalentiškumą. Tai yra paliekama ateities darbams.
 
 \sectionnonum{Rezultatai ir išvados}
 
-Šiame darbe buvo išnagrinėtas Raft algoritmas ir jo įgyvendinimas -- Ra biblioteka. Detaliau buvo palyginti Raft darbe aprašyti mazgų negyvybingumo aptikimo algoritmai su Ra naudojamais Erlang mazgų stebėjimo infrastruktūra. Nustatyta, kad Raft pasiūlytas mechanizmas, ir Ra naudojamas Erlang gimtasis funkcionalumas, yra to paties širdies plakimo algoritmo įgyvendinimai ir esminių skirtumų tarp jų nėra. Todėl teigiama, kad Ra įgyvendinimas yra korektiškas ir išlaiko Raft savybes.
+Šiame darbe buvo pasiekti rezultatai:
+\begin{enumerate}
+\item Išnagrinėtas Raft algoritmas ir jo įgyvendinimas -- Ra biblioteka. Pateikta esamos literatūros apžvalga.
+\item Palyginti Raft darbe aprašyti mazgų negyvybingumo aptikimo algoritmai su Ra mazgų stebėjimo infrastruktūra.
+\item Pateiktos formalios Raft ir Ra gedimų aptikimo algoritmų specifikacijos parašytos TLA$^+$ kalba.
+\end{enumerate}
 
-Erlang Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimtosios Erlang funkcijos ir bibliotekos yra skirtos būtent tokių paskirstytų sistemų būsenų stebėjimui, todėl įgyvendinimo kaštai yra dar labiau sumažinami. Visa tai gerai komponuoja su Raft autorių motyvacija~\cite{ongaro_consensus} -- padaryti paskirstytų sistemų konsensuso algoritmo įgyvendinimą kuo paprastesnį, sumažinti galimų klaidų skaičių, leisti kuo lengviau papildyti esamą funkcionalumą naujais praplėtimais. Šio darbo autorių nuomone, Ra biblioteka yra ne tik puikus techninio Raft algoritmo įgyvendinimo, bet ir Raft paprastumo ir aiškumo dvasią išlaikančios bibliotekos pavyzdys. 
+Šio darbo padarytos išvados:
+\begin{enumerate}
+\item Darbo autorių nuomone, tarp Raft ir Ra gedimo aptikimo specifikacijų yra daug panašumų.
+\item Ra bibliotekos Raft mazgų neveikimo aptikimo specifikacijos atitikimui formaliai įrodyti reikia ištirti \texttt{commitIndex} reikšmės nebuvimo širdies plakimo žinutėse padarinius ir formaliai įrodyti jų gedimų aptikimo algoritmų Raft savybių atitikimo ekvivalentiškumą, galimai remiantis šiame darbe pateiktomis formaliomis Raft ir Ra algoritmų specifikacijomis.
+\end{enumerate}
+
+
+Šio darbo autorių nuomone, Raft algoritmo įgyvendinimas Ra yra gerokai palengvinamas tuo, kad gimtosios Erlang funkcijos ir bibliotekos yra skirtos būtent tokių paskirstytų sistemų būsenų stebėjimui, todėl įgyvendinimo kaštai yra dar labiau sumažinami. Visa tai gerai komponuoja su Raft autorių motyvacija~\cite{ongaro_consensus} -- padaryti paskirstytų sistemų konsensuso algoritmo įgyvendinimą kuo paprastesnį, sumažinti galimų klaidų skaičių, leisti kuo lengviau papildyti esamą funkcionalumą naujais praplėtimais. Mūsų nuomone, Ra biblioteka yra ne tik puikus techninio Raft algoritmo įgyvendinimo, bet ir Raft paprastumo ir aiškumo dvasią išlaikančios bibliotekos pavyzdys. 
 
 %Rezultatų ir išvadų dalyje turi būti aiškiai išdėstomi pagrindiniai darbo
 %rezultatai (kažkas išanalizuota, kažkas sukurta, kažkas įdiegta) ir pateikiamos
